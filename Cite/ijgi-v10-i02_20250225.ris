@@ -1,0 +1,25 @@
+TY  - EJOUR
+AU  - Ortolano, Gaetano 
+AU  - D’Agostino, Alberto 
+AU  - Pagano, Mario 
+AU  - Visalli, Roberto 
+AU  - Zucali, Michele 
+AU  - Fazio, Eugenio 
+AU  - Alsop, Ian 
+AU  - Cirrincione, Rosolino 
+TI  - ArcStereoNet: A New ArcGIS® Toolbox for Projection and Analysis of Meso- and Micro-Structural Data
+T2  - ISPRS International Journal of Geo-Information
+PY  - 2021
+VL  - 10
+IS  - 2
+SN  - 2220-9964
+AB  - ArcStereoNet is a new ArcGIS® based toolbox for stereographic projections that we implement here using Python 2.7 programming language. The reason to develop another stereographic projection package arises from the recent use of Python as an exclusive programming language within the ArcGIS® environment. This permits a more flexible approach for the development of tools with very intuitive GUIs, and also allows the user to take full advantage of all potential GIS mapping processes. The core of this new projections toolbox is based on the capability to easily apply and compare most of the commonly used statistical methods for cluster and girdle analysis of structural data. In addition to the well-known Fisher, K-means, and Bingham data elaborations, a completely new algorithm for cluster analysis and mean vector extraction (Mean Extractor from Azimuthal Data), was developed, thereby allowing a more reliable interpretation of any possible structural data distribution. Furthermore, as in any other GIS platform, users can always precisely correlate each single projected data point with the corresponding geographical/locality position, thereby merging or subdividing groups of structural stations with a simple selection procedure. ArcStereoNet also creates rose diagrams, which may be applied not only to fault/joint planes orientation data, but also for the analysis of 2D microstructural fabric parameters. These include geometrical datasets derived from the minimum bounding approach as applied to vectorized grains in thin sections. Finally, several customization settings ensure high-quality graphic outputs of plots, that also allow easy vector graphics post-processing.
+KW  - stereoplots
+KW  - ArcGIS®
+KW  - Python
+KW  - rose diagrams
+KW  - structural geology
+KW  - orientation data
+KW  - fabric analysis
+DO  - 10.3390/ijgi10020050
+ER  -
