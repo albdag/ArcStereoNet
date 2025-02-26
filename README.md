@@ -53,7 +53,7 @@ Unfortunately, due to the internal changes of Python Environments in ArcGIS Pro,
  5. Activate your cloned environment by typing `proswap arcgispro-py3-clone` or `proswap your_custom_name` if you have renamed the cloned environment.
  6. Install dependencies on the environment by typing `pip install mplstereonet --no-deps`
  7. Open ArcGIS Pro.
- 8. Copy the toolbox file "ArcStereoNet.pyt" located in the **"src"** folder file and paste it inside a new Map project folder, by right-clicking on Toolboxes inside the Catalog panel.
+ 8. Copy the toolbox file "ArcStereoNetPro.pyt" located in the **"src"** folder file and paste it inside a new Map project folder, by right-clicking on Toolboxes inside the Catalog panel.
 
 >[!Warning]
 >Whenever you want to use ArcStereoNet Pro, you need to make sure that the Python environment where its dependencies are installed is the active environment. 
