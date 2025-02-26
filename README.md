@@ -1,9 +1,10 @@
 # ArcStereoNet
+<img src="https://github.com/user-attachments/assets/bf542b93-c404-4919-ae8e-da08e4dbf089">
+
 ArcStereoNet is a Python toolbox for generating high quality *rose diagrams* and *stereographic projections* within **ArcGIS®**. With ArcStereoNet you can quickly analyse your oriented data, while taking advantage of the powerful geospatial tools provided by ArcGIS®. The main benefit of using this toolbox is being able to <ins>analyse your data within the same software environment</ins>, minding the gap between spatial orientation of data and its georeferenced location.
 
 It has been developed mainly for providing support to structural geology and mineralogy analysis. Oriented data can be acquired on field (e.g., beddings, fault lines etc.) but also extracted from thin section high-resolution images (e.g., mineral preferred orientations). However, ASN is potentially suitable to work with any type of oriented data (e.g., wind directions).
 
-<img src="https://github.com/user-attachments/assets/bf542b93-c404-4919-ae8e-da08e4dbf089" height="256">
 <img src="https://github.com/user-attachments/assets/2e78d961-8f7d-4d7d-a5bd-7cc167850c8b" height="256">
 <img src="https://github.com/user-attachments/assets/d16a1501-f3ee-4ade-847c-6193435fd504" height="256">
 
