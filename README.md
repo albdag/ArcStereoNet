@@ -24,11 +24,11 @@ Export citation file: [BibTeX](Cite/ijgi-v10-i02_20250225.bib) | [EndNote](Cite/
 
 
 # Installation for ArcGIS Desktop (ArcMap) users
- 1. Download *ArcStereoNet* toolbox.
- 2. Copy the toolbox file "ArcStereoNet.pyt" inside ArcGIS® toolboxes folder. By default, the full path is:\
+ 1. Download [*ArcStereoNet*](https://github.com/albdag/ArcStereoNet/releases/latest) toolbox.
+ 2. Copy the toolbox file "ArcStereoNet.pyt" located in the **"src"** folder and paste it inside ArcGIS® toolboxes folder. By default, the full path is:\
     `"C:/Program Files (x86)/ArcGis/Desktop10.x/ArcToolbox/Toolboxes"`.
- 3. Open the ArcToolbox window inside ArcMap®, right-click and then select "Add Toolbox" option to import ArcStereoNet.
- 4. The installation will automatically start; this requires an internet connection. A pop-up window will inform the user whether the components have been successfully installed or not.
+ 4. Open the ArcToolbox window inside ArcMap®, right-click and then select "Add Toolbox" option to import ArcStereoNet.
+ 5. The installation will automatically start; this requires an internet connection. A pop-up window will inform the user whether the components have been successfully installed or not.
 
 >[!Note]
 > - ArcGIS Desktop versions 10.4+ are fully compatible.
@@ -38,7 +38,7 @@ Export citation file: [BibTeX](Cite/ijgi-v10-i02_20250225.bib) | [EndNote](Cite/
 
 # Installation for ArcGIS Pro
 
-Unfortunately, due to the internal changes of Python Environments in ArcGIS Pro, the *ArcStereoNet Pro* version cannot simply be dragged and dropped for it to be installed. The installation process requires a few steps, which are listed below.
+Unfortunately, due to the internal changes of Python Environments in ArcGIS Pro, the *ArcStereoNet Pro* version cannot be automatically installed. The installation process requires a few steps, which are listed below.
 
 >[!Note]
 >With these steps you will create a new Python environment within ArcGis Pro, where the toolbox dependencies will be installed. This is in order to avoid possible conflicts with other Python modules that could be installed in your default environment. However, if you are familiar with Python environments in ArcGis Pro, you can also try installing the dependencies within your preferred environment.
@@ -46,13 +46,14 @@ Unfortunately, due to the internal changes of Python Environments in ArcGIS Pro,
 >[!Warning]
 >You may require admin privileges to install ArcStereoNet Pro on your machine.
 
- 1. Download *ArcStereoNet Pro* toolbox.
+ 1. Download [*ArcStereoNet*](https://github.com/albdag/ArcStereoNet/releases/latest) toolbox.
  2. Follow the [official ESRI guide](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/clone-an-environment.htm) to clone the default Python environment inside ArcGIS Pro.
  3. Close ArcGIS Pro.
  4. Open the **ArcGIS Pro Python Command Prompt** by navigating to Start Menu > All Programs > ArcGIS > Python Command Prompt.
  5. Activate your cloned environment by typing `proswap arcgispro-py3-clone` or `proswap your_custom_name` if you have renamed the cloned environment.
  6. Install dependencies on the environment by typing `pip install mplstereonet --no-deps`
- 7. Open ArcGIS Pro and add the "ArcStereoNetPro.pyt" file directly inside a new Map project folder, by right-clicking on Toolboxes inside the Catalog panel.
+ 7. Open ArcGIS Pro.
+ 8. Copy the toolbox file "ArcStereoNet.pyt" located in the **"src"** folder file and paste it inside a new Map project folder, by right-clicking on Toolboxes inside the Catalog panel.
 
 >[!Warning]
 >Whenever you want to use ArcStereoNet Pro, you need to make sure that the Python environment where its dependencies are installed is the active environment. 
