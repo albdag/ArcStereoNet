@@ -99,7 +99,7 @@ The following screenshots shows the *Stereoplots* tool layout. A detailed descri
 A shapefile is required: point, line and polygon feature types are supported.
 
 <ins>**(B)** *Azimuth*, *Dip Angle*, *Method* and *Type* fields input parameters.</ins>\
-If you have formatted the shapefile fields names as recommended ([Preparing Your Data](1-preparing-your-data)), these parameters will be automatically filled, otherwise they can be selected manually through the drop-down menus.
+If you have formatted the shapefile fields names as recommended ([Preparing Your Data](#1-preparing-your-data)), these parameters will be automatically filled, otherwise they can be selected manually through the drop-down menus.
 
 <ins>**(C)** Plotting data Value Table.</ins>\
 The feature types can be added through the drop-down menu. For each feature type, the user can specify the plotting colour, pole or vector symbol and size, cyclographic trace style and width (Value Table columns).
@@ -110,7 +110,7 @@ The feature types can be added through the drop-down menu. For each feature type
 By unchecking the *Store Image Output* checkbox, the user can prompt the tool to save a temporary output image file and automatically open it after the tool execution. Otherwise, the output image file path can be specified in the *Output Image* parameter box. The image DPI value can be set through the parameter below.
 
 <ins>**(E)** Contour & Statistics sub-menu (collapsed).</ins>\
-See [Contour & Statistics](2.1contour-&-statistics) for details.
+See [Contour & Statistics](#21-contour--statistics) for details.
 
 <ins>**(F)** Plot customisation sub-menu (expanded).</ins>\
 The following parameters can be set (from top to bottom): the title label that will appear in the plot (if not specified, it will be the name of the shapefile); the number of Tick Marks surrounding the plot and their type (i.e., angular values, cardinal points or a mix of them); whether to enable or disable the appearance of the stereonet grid, the legend and the number of plotted data.
@@ -170,7 +170,7 @@ The following screenshot shows the *Rose Diagrams* tool layout. A detailed descr
 A shapefile is required: point, line and polygon feature types are supported.
 
 <ins>**(B)** *Azimuth* and *Type* fields input parameters.</ins>\
-If the user has formatted the shapefile fields names as recommended ([Preparing Your Data](1-preparing-your-data)), these parameters will be automatically filled, otherwise they can be selected manually through the drop-down menus.
+If the user has formatted the shapefile fields names as recommended ([Preparing Your Data](#1-preparing-your-data)), these parameters will be automatically filled, otherwise they can be selected manually through the drop-down menus.
 
 <ins>**(C)** Plotting data Value Table.</ins>\
 The feature types can be added through the drop-down menu. For each feature, the user can specify the bar colour and whether to show the mean vectors or not, with a determined number of clusters and azimuth tolerance (Value Table columns).
