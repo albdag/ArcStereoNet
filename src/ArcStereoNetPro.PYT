@@ -848,7 +848,7 @@ class RoseDiagrams(object):
 
         if STORE_IMG.value:
             coords = arcpy.da.FeatureClassToNumPyArray(source, 'Shape')         # Extracting centroid coordinates
-            centroid = np.mean(coords.tolist(), axis=0)[0]
+            centroid = np.nanmean(coords.tolist(), axis=0)[0]
 
 
 
@@ -1064,11 +1064,13 @@ class RoseDiagrams(object):
         elif OUTPUT_IMG.valueAsText.endswith('.png'):
             arcpy.BuildPyramids_management(OUTPUT_IMG.valueAsText)
 
-            xyInfo = path.splitext(OUTPUT_IMG.valueAsText)[0] + '_xy.txt'       # Saving centroid coordinates
+            xypath = path.splitext(OUTPUT_IMG.valueAsText)[0] + '_xy.txt'       # Saving centroid coordinates
             clon, clat = centroid
-            with io.open(xyInfo, 'w') as XY:
-                XY.write(u'{}, {}, {}'.format(clon, clat, IN_FEATURE.valueAsText))
-                XY.close()
+            descr = arcpy.Describe(IN_FEATURE.valueAsText)
+            with io.open(xypath, 'w') as xyfile:
+                xyfile.write(u'{}\n'.format(clon))
+                xyfile.write(u'{}\n'.format(clat))
+                xyfile.write(u'{}\n'.format(path.join(descr.path, descr.name)))
 
 
 
@@ -1681,7 +1683,7 @@ class StereoPlots(object):
 
         if STORE_IMG.value:
             coords = arcpy.da.FeatureClassToNumPyArray(source, 'Shape')         # Extracting centroid coordinates
-            centroid = np.mean(coords.tolist(), axis=0)[0]
+            centroid = np.nanmean(coords.tolist(), axis=0)[0]
 
 
 #-------------------------Pre-Elaboration of Data------------------------------#
@@ -2163,11 +2165,13 @@ class StereoPlots(object):
         elif OUTPUT_IMG.valueAsText.endswith('.png'):
             arcpy.BuildPyramids_management(OUTPUT_IMG.valueAsText)
 
-            xyInfo = path.splitext(OUTPUT_IMG.valueAsText)[0] + '_xy.txt'       # Saving centroid coordinates
+            xypath = path.splitext(OUTPUT_IMG.valueAsText)[0] + '_xy.txt'       # Saving centroid coordinates
             clon, clat = centroid
-            with io.open(xyInfo, 'w') as XY:
-                XY.write(u'{}, {}, {}'.format(clon, clat, IN_FEATURE.valueAsText))
-                XY.close()
+            descr = arcpy.Describe(IN_FEATURE.valueAsText)
+            with io.open(xypath, 'w') as xyfile:
+                xyfile.write(u'{}\n'.format(clon))
+                xyfile.write(u'{}\n'.format(clat))
+                xyfile.write(u'{}\n'.format(path.join(descr.path, descr.name)))
 
 
 
@@ -2290,30 +2294,32 @@ class GraphToHyperlink(object):
 #------------------Creation of the new output feature class--------------------#
 
         rows = []
-        spat_ref = ''
+        sr = []                                                                 # sr = Spatial Reference
 
         for ID, plot_img in enumerate(IN_PLOT.values):
 
             xy_file = path.splitext(str(plot_img))[0] + '_xy.txt'
             with io.open(xy_file, 'r') as temp_xy:
-                lon, lat, ODpath = temp_xy.readline().split(',')                # ODpath = Oriented Data path
+                lon, lat, source_path = temp_xy.readlines()                
                 lon, lat = float(lon), float(lat)
+                sr.append(arcpy.Describe(source_path).spatialReference)
                 rows.append(((lon, lat), ID, str(plot_img)))
-                if spat_ref not in('', ODpath):
-                    spat_ref == None
-                else:
-                    spat_ref = ODpath
-                temp_xy.close()
 
         out_path, out_name = path.split(OUT_SHP.valueAsText)
+        # Set SR to None if multiple SR are found (and send warning)
+        if len({s.exporttostring() for s in sr}) == 1:
+            spat_ref = sr[0]
+        else:
+            spat_ref = None
+            messages.addWarningMessage('Found conflicting SR: set to Unknown!')
         arcpy.CreateFeatureclass_management(out_path, out_name, "POINT",
                                             spatial_reference=spat_ref)
         arcpy.AddField_management(OUT_SHP.valueAsText, "Plot", "TEXT")
-        curs = arcpy.da.InsertCursor(OUT_SHP.valueAsText,
-                                    ["SHAPE@XY", "Id", "Plot"])
-
-        for row in rows:
-            curs.insertRow(row)
+        
+        fields = ["SHAPE@XY", "Id", "Plot"]
+        with arcpy.da.InsertCursor(OUT_SHP.valueAsText, fields) as curs:
+            for row in rows:
+                curs.insertRow(row)
 
 
 
