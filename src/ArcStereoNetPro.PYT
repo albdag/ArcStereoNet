@@ -15,13 +15,10 @@ from os import path, remove, startfile
 #----------------------------Import  mplstereonet------------------------------#
 
 try:
-    from mplstereonet import * 
-
-except ImportError:                                                             
-    import sys
-    e = sys.exc_info()[1]
-    print(e.args[0])                                                            
-    arcpy.AddError(e.args[0])                                                   # will this show up in arcgis?
+    from mplstereonet import *
+    MPLSTEREONET_AVAILABLE = True
+except ImportError:
+    MPLSTEREONET_AVAILABLE = False
 
 #-----------------------------Add output function------------------------------#
 
@@ -339,19 +336,51 @@ class Toolbox(object):
         self.tools = [RoseDiagrams, StereoPlots, GraphToHyperlink]
 
 
+class _ToolBase(object):
+
+    def __init__(self) -> None:
+
+        """Base class for all tools."""
+
+        self.label = 'Tool label'
+        self.description = 'Tool description.'
+        self.canRunInBackground = False
+
+
+    def checkExternalDependencies(self, messages) -> bool:
+
+        """Check for the availabilty of all required external Python libraries.
+        Add dedicated error message if dependencies are missing.
+
+        Args:
+            messages: Geoprocessing messages object.
+
+        Returns:
+            bool: Whether all external dependencies are available.
+        """
+
+        if MPLSTEREONET_AVAILABLE:
+            return True
+        else:
+            link = "https://github.com/albdag/ArcStereoNet/wiki/1.-Installation#installation-for-arcgis-pro"
+            error_msg = "Mplstereonet dependency is missing from your " \
+            "current Python environment. For more info, check the " \
+            f"installation guide at {link}"
+            messages.addErrorMessage(error_msg)
+            return False
 
 
 #- - - - - - - - - - R  O  S  E     D  I  A  G  R  A  M  S - - - - - - - - - - #
 
-class RoseDiagrams(object):
+class RoseDiagrams(_ToolBase):
 
     def __init__(self):
 
         """Define the tool (tool name is the name of the class)."""
 
+        super().__init__()
         self.label = 'Rose Diagrams'
         self.description = 'Use this tool to plot rose diagrams'
-        self.canRunInBackground = False
 
 
 
@@ -802,6 +831,10 @@ class RoseDiagrams(object):
     def execute(self, parameters, messages):
 
         """The source code of the tool."""
+        
+        ok = self.checkExternalDependencies(messages)
+        if not ok:
+            return
 
 
 #---------------------------Parameters assignation-----------------------------#
@@ -1086,15 +1119,15 @@ class RoseDiagrams(object):
 
 #- - - - - - - - - S   T   E   R   E   O   P   L   O   T   S - - - - - - - - - #
 
-class StereoPlots(object):
+class StereoPlots(_ToolBase):
 
     def __init__(self):
 
         """Define the tool (tool name is the name of the class)."""
 
+        super().__init__()
         self.label = 'Stereoplots'
         self.description = 'Add description.'
-        self.canRunInBackground = False
 
 
 
@@ -1646,6 +1679,10 @@ class StereoPlots(object):
 
         """The source code of the tool."""
 
+        ok = self.checkExternalDependencies(messages)
+        if not ok:
+            return
+
 #---------------------------Parameters assignation-----------------------------#
 
         IN_FEATURE = parameters[0]
@@ -2181,15 +2218,15 @@ class StereoPlots(object):
 
 #- - - - - - - G  R  A  P  H    T  O    H  Y  P  E  R  L  I  N  K - - - - - - -#
 
-class GraphToHyperlink(object):
+class GraphToHyperlink(_ToolBase):
 
     def __init__(self):
 
         """Define the tool (tool name is the name of the class)."""
 
+        super().__init__()
         self.label = 'Graph To Hyperlink'
         self.description = 'Use this tool to link plots with corresponding data.'
-        self.canRunInBackground = False
 
 
 
