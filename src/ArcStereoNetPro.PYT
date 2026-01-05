@@ -894,7 +894,6 @@ class RoseDiagrams(_ToolBase):
 
         fig = plt.figure(figsize = (6,6))
         ax = fig.add_subplot(111, projection = 'polar')
-        fig.subplots_adjust(top = 0.85)
 
         ax.set_title(title, y = 1.1, fontsize = 18)
 
@@ -1755,7 +1754,6 @@ class StereoPlots(_ToolBase):
 
         fig = plt.figure(figsize = (6,6))
         ax = fig.add_subplot(111, projection = nets_dict[NET_TYPE.valueAsText])
-        fig.subplots_adjust(top = 0.85)
 
         if TITLE_LABEL.value:
             title = TITLE_LABEL.valueAsText
