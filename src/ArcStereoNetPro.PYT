@@ -1006,7 +1006,7 @@ class RoseDiagrams(_ToolBase):
 
 #-------Adding Grid, Weighted on, Legend and n.of Data Label to the plot-------#
 
-        ax.grid(b = SHOW_GRID.value)
+        ax.grid(SHOW_GRID.value)
 
 
         if WEIGHTED.value:
@@ -2062,7 +2062,7 @@ class StereoPlots(_ToolBase):
 
 #----Adding Grid, Legend, n.of Data label, Colorbar & Tick Marks to the plot---#
 
-        ax.grid(b = SHOW_GRID.value)
+        ax.grid(SHOW_GRID.value)
 
 
         if SHOW_LEGEND.value == True:
