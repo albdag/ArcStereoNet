@@ -398,3 +398,9 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# ArcStereoNet Pro files from testing the toolbox
+src/ArcStereoNetPro.PYT.xml
+src/ArcStereoNetPro.StereoPlots.pyt.xml
+src/ArcStereoNetPro.RoseDiagrams.pyt.xml
+src/ArcStereoNetPro.GraphToHyperlink.pyt.xml
