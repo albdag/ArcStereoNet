@@ -69,19 +69,13 @@ lines_dict = {'Solid':'-', 'Dashed':'--', 'Dotted':':', 'Dashdot':'-.'}         
 def tempFile():
 
     scratchFLD = arcpy.env.scratchFolder
-
-    if not arcpy.Exists(scratchFLD):
-        scratchFLD = arcpy.GetSystemEnvironment("TEMP")
-
-        if not arcpy.Exists(scratchFLD):
-            scratchFLD = arcpy.GetSystemEnvironment("CWD")
-
     tempPath = path.join(scratchFLD, 'TempFile.png')
     if path.exists(tempPath):                                                   # Delete previously generated preview plot, if exixsts
         try:
             remove(tempPath)
         except WindowsError:                                                    # WindowsError occurs the first time ArcStereoNet has been installed
             pass                                                                # because it automatically show the temp image result on T.O.C. (why?)
+                                                                                # VERIFY IF THIS ^^^ IS STILL THE CASE IN ARCGIS PRO. SHOULD WE REALLY DELETE IT HERE?
 
     return tempPath
 
