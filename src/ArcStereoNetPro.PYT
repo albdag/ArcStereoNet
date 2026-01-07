@@ -26,40 +26,104 @@ arcpy.env.addOutputsToMap = False                                               
 
 
 
-#------------------------------Global  Variables-------------------------------#
+#------------------------------Global Constants-------------------------------#
+# Contour methods dictionary
+CONTOUR_METHODS = {
+    'Kamb (no smoothing)': 'kamb',                               
+    'Kamb (linear smoothing)': 'linear_kamb',
+    'Kamb (inverse square smoothing)': 'square_kamb',
+    'Kamb (exponential smoothing)': 'exponential_kamb',
+    'Schmidt (a.k.a. 1%)': 'schmidt'
+}
 
-contour_methods = {'Kamb (no smoothing)':'kamb',                                # Contour methods dictionary
-                   'Kamb (linear smoothing)':'linear_kamb',
-                   'Kamb (inverse square smoothing)':'square_kamb',
-                   'Kamb (exponential smoothing)':'exponential_kamb',
-                   'Schmidt (a.k.a. 1%)':'schmidt'}
+# Contour color maps dictionary
+CONTOUR_COLORMAPS = {
+    "Viridis (Purple-Green-Yellow)": "viridis",
+    "Plasma (Blue-Red-Yellow)": "plasma",
+    "Inferno (DarkPurple-Red-Yellow)": "inferno",
+    "Magma (DarkPurple-DarkPink-PaleYellow)": "magma",
+    "Cividis (Blue-Yellow)": "cividis",
+    "Turbo (Blue-Yellow-Red)": "turbo",
+    "Greys": "Greys",
+    "Purples": "Purples",
+    "Blues": "Blues",
+    "Greens": "Greens",
+    "Oranges": "Oranges",
+    "Reds": "Reds",
+    "Yellow-Orange-Brown": "YlOrBr",
+    "Yellow-Orange-Red": "YlOrRd",
+    "Orange-Red": "OrRd",
+    "Purple-Red": "PuRd",
+    "Red-Purple": "RdPu",
+    "Blue-Purple": "BuPu",
+    "Purple-Blue": "PuBu",
+    "Green-Blue": "GnBu",
+    "Blue-Green": "BuGn",
+    "Purple-Blue-Green": "PuBuGn",
+    "Yellow-Green-Blue": "YlGnBu",
+    "Yellow-Green": "YlGn",
+}
 
-colorMaps = ['Blues', 'Greens', 'Greys', 'Oranges', 'Purples', 'Reds', 'bwr']   # Contour color maps
+# Net types dictionary
+NETS = {
+    'Schmidt (Equal Area)': 'equal_area_stereonet',                     
+    'Wulff (Equal Angle)': 'equal_angle_stereonet'
+}
 
-nets_dict = {'Schmidt (Equal Area)':'equal_area_stereonet',                     # Net types dictionary
-             'Wulff (Equal Angle)':'equal_angle_stereonet'}
+# Cardinal points
+CARDINALS = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW') 
+CARDINALS_HYBRID = ('N', u'45\u00B0', u'90\u00B0', u'135\u00B0', u'180\u00B0',
+                    u'225\u00B0', u'270\u00B0', u'315\u00B0')
 
-cardinals = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')                        # Supported Cardinal Points
-card_hybrid = ('N', u'45\u00B0', u'90\u00B0', u'135\u00B0', u'180\u00B0',
-               u'225\u00B0', u'270\u00B0', u'315\u00B0')
+# Colors dictionary, inspired from https://xkcd.com/color/rgb/
+COLORS = {
+    'Red': 'r',
+    'Green': 'g',
+    'Blue': 'b',
+    'Cyan': 'c',
+    'Magenta': 'm',   
+    'Yellow': 'y',
+    'Black': 'k',
+    'Orange': '#ff8c00',
+    'Grey': '#808080',
+    'Salmon': '#e9967a',
+    'Olive': '#808000',
+    'Violet': '#440d80',
+    'Gold' : '#daa520',
+    'Water green': '#00ff7f',
+    'Peach': '#ffb07c',
+    'Light yellow': '#f0e68c',
+    'Greenish Blue': '#0b8b87',
+    'Puke Brown': '#947706',
+    'Indigo': '#380282',
+    'Dust': '#b2996e',
+    'Very Light Blue': '#d5ffff',
+    'Muddy Green': '#657432',
+    'Dirty Pink': '#ca7b80'
+}
 
-# https://xkcd.com/color/rgb/ for more colors
-colors_dict = {'Red':'r', 'Green':'g', 'Blue':'b', 'Cyan':'c', 'Magenta':'m',   # Colors dictionary
-               'Yellow':'y', 'Black':'k', 'Orange':'#ff8c00', 'Grey':'#808080',
-               'Salmon':'#e9967a', 'Olive':'#808000', 'Violet':'#440d80',
-               'Gold':'#daa520', 'Water green':'#00ff7f', 'Peach':'#ffb07c',
-               'Light yellow':'#f0e68c', 'Greenish Blue':'#0b8b87',
-               'Puke Brown':'#947706', 'Indigo':'#380282', 'Dust':'#b2996e',
-               'Very Light Blue':'#d5ffff', 'Muddy Green':'#657432',
-               'Dirty Pink':'#ca7b80'}
-
-markers_dict = {'Point':'.', 'Square':'s', 'Triangle':'^', 'Hexagon':'H',       # Markers dictionary
-                'Thin diamond':'d', 'Star':'*', 'Circle':'o', 'Diamond':'D',
-                'Pentagon':'p'}
-                # add 'Plus':'P' and 'X':'X' with updated version of matplotlib
-
-lines_dict = {'Solid':'-', 'Dashed':'--', 'Dotted':':', 'Dashdot':'-.'}         # Lines dictionary
-
+# Markers dictionary
+MARKERS = {
+    'Point (•)': '.',
+    'Square (◻)': 's',
+    'Triangle (△)': '^',
+    'Hexagon (⬡)': 'H',       
+    'Thin diamond (◊)': 'd',
+    'Star (☆)': '*',
+    'Circle (○)': 'o',
+    'Diamond (◇)': 'D',
+    'Pentagon (⬠)': 'p',
+    'Plus (+)': 'P',
+    'Cross (✕)': 'X'
+}
+                
+# Lines dictionary
+LINES = {
+    'Solid (—)': '-',
+    'Dashed (---)': '--',
+    'Dotted (· · ·)': ':',
+    'Dashdot (-·-)': '-.'
+}
 
 
 #- - - - - - - - - - - - U S E F U L  F U N C T I O N S - - - - - - - - - - - -#
@@ -430,7 +494,7 @@ class RoseDiagrams(_ToolBase):
         param3.filters[4].type = 'Range'
 
         param3.filters[0].list = ['NONE']
-        param3.filters[1].list = ['Random'] + sorted(colors_dict.keys())
+        param3.filters[1].list = ['Random'] + sorted(COLORS.keys())
         param3.filters[2].list = ['NO', 'YES']
         param3.filters[4].list = [0, 100]
 
@@ -898,8 +962,8 @@ class RoseDiagrams(_ToolBase):
             _type, _color, _meanVect, _nClusts, _azmTol = row
 
             if _color == 'Random':                                              # Select a random color if not specified by the user
-                random_index = np.random.randint(len(colors_dict))
-                _color = list(colors_dict.keys())[random_index]
+                random_index = np.random.randint(len(COLORS))
+                _color = list(COLORS.keys())[random_index]
 
             proj_types.add(_type)                                               # Add data type to projected data types set
 
@@ -925,7 +989,7 @@ class RoseDiagrams(_ToolBase):
             ax.bar(np.radians(np.arange(0, 360, 10)), bottom = 0.0,
                    height = dataShow, width = np.radians(10),
                    align = 'center',
-                   color = colors_dict[_color],
+                   color = COLORS[_color],
                    edgecolor = 'w' if _color == 'Black' else 'k',
                    label = _type)
 
@@ -951,7 +1015,7 @@ class RoseDiagrams(_ToolBase):
                     for q in range(n_quivs):
                         ax.quiver(0, 0,
                                   sign * sin_r(avg_deg), sign * cos_r(avg_deg),
-                                  facecolor = colors_dict[_color],
+                                  facecolor = COLORS[_color],
                                   edgecolor = quiver_ec,
                                   linewidth = 1.25,
                                   scale = 2. / R_mean,
@@ -1201,9 +1265,9 @@ class StereoPlots(_ToolBase):
         param5.filters[4].type = 'ValueList'
 
         param5.filters[0].list = ['NONE']
-        param5.filters[1].list = ['Random'] + sorted(colors_dict.keys())
-        param5.filters[2].list = ['NONE'] + sorted(markers_dict.keys())
-        param5.filters[4].list = ['NONE'] + sorted(lines_dict.keys())
+        param5.filters[1].list = ['Random'] + sorted(COLORS.keys())
+        param5.filters[2].list = ['NONE'] + sorted(MARKERS.keys())
+        param5.filters[4].list = ['NONE'] + sorted(LINES.keys())
 
 
 
@@ -1258,7 +1322,7 @@ class StereoPlots(_ToolBase):
 
         param9.value = 'Schmidt (Equal Area)'
         param9.filter.type = 'ValueList'
-        param9.filter.list = list(nets_dict.keys())
+        param9.filter.list = list(NETS.keys())
 
 
 
@@ -1386,9 +1450,9 @@ class StereoPlots(_ToolBase):
         param17.filters[5].type = 'Range'
 
         param17.filters[0].list = ['NONE']
-        param17.filters[1].list = sorted(contour_methods.keys())
+        param17.filters[1].list = sorted(CONTOUR_METHODS.keys())
         param17.filters[3].list = ['Filled', 'Unfilled']
-        param17.filters[4].list = ['Random'] + colorMaps
+        param17.filters[4].list = ['Random'] + list(CONTOUR_COLORMAPS.keys())
         param17.filters[5].list = [0, 100]
 
 
@@ -1444,9 +1508,9 @@ class StereoPlots(_ToolBase):
         param19.filters[3].list = [0, 100]
         param19.filters[4].list = [0, 100]
         param19.filters[5].list = [0, 99]
-        param19.filters[6].list = ['Random'] + sorted(colors_dict.keys())
-        param19.filters[7].list = ['NONE'] + sorted(markers_dict.keys())
-        param19.filters[9].list = ['NONE'] + sorted(lines_dict.keys())
+        param19.filters[6].list = ['Random'] + sorted(COLORS.keys())
+        param19.filters[7].list = ['NONE'] + sorted(MARKERS.keys())
+        param19.filters[9].list = ['NONE'] + sorted(LINES.keys())
 
 
 
@@ -1536,7 +1600,7 @@ class StereoPlots(_ToolBase):
 
 
         if parameters[5].altered and parameters[5].values != None:
-            AutoFill_vT(parameters[5], (1, 2, 4), ('Random', 'Point', 'NONE'))
+            AutoFill_vT(parameters[5], (1, 2, 4), ('Random', 'Point (•)', 'NONE'))
             AutoFill_vT(parameters[5], (3, 5), (5.0, 0.5), checkList=False)
         else:
             pass
@@ -1737,7 +1801,7 @@ class StereoPlots(_ToolBase):
 #-----------------------Initialization of MPLStereonet-------------------------#
 
         fig = plt.figure(figsize = (6,6))
-        ax = fig.add_subplot(111, projection = nets_dict[NET_TYPE.valueAsText])
+        ax = fig.add_subplot(111, projection = NETS[NET_TYPE.valueAsText])
 
         if TITLE_LABEL.value:
             title = TITLE_LABEL.valueAsText
@@ -1756,8 +1820,8 @@ class StereoPlots(_ToolBase):
                 _type, _color, _marker, _mSize, _line, _lWidth = row
 
                 if _color == 'Random':                                          # Select a random color if not specified by the user
-                    random_index = np.random.randint(len(colors_dict))
-                    _color = list(colors_dict.keys())[random_index]
+                    random_index = np.random.randint(len(COLORS))
+                    _color = list(COLORS.keys())[random_index]
 
                 proj_types.add(_type)                                           # Add data type to projected data types set
 
@@ -1769,8 +1833,8 @@ class StereoPlots(_ToolBase):
                     if len(strikes) > len(trends):
                         ax.pole(strikes,
                                 dips,
-                                c = colors_dict[_color],
-                                marker = markers_dict[_marker],
+                                c = COLORS[_color],
+                                marker = MARKERS[_marker],
                                 mec = 'w' if _color == 'Black' else 'k',
                                 markersize = _mSize,
                                 label = _type + ' (Poles)')
@@ -1778,8 +1842,8 @@ class StereoPlots(_ToolBase):
                     else:
                         ax.line(plunges,
                                 trends,
-                                c = colors_dict[_color],
-                                marker = markers_dict[_marker],
+                                c = COLORS[_color],
+                                marker = MARKERS[_marker],
                                 mec = 'w' if _color == 'Black' else 'k',
                                 markersize = _mSize,
                                 label = _type)
@@ -1789,8 +1853,8 @@ class StereoPlots(_ToolBase):
                         fground = 'white' if _color == 'Black' else 'black'
                         ax.plane(strikes,
                                  dips,
-                                 c = colors_dict[_color],
-                                 ls = lines_dict[_line],
+                                 c = COLORS[_color],
+                                 ls = LINES[_line],
                                  linewidth = _lWidth,
                                  path_effects = [mpe.withStroke(linewidth=_lWidth*2,
                                                                 foreground=fground)],
@@ -1805,8 +1869,8 @@ class StereoPlots(_ToolBase):
                 _type, _method, _sigma, _style, _color, _alpha = row
 
                 if _color == 'Random':                                          # Select a random color map if not specified by the user
-                    random_index = np.random.randint(len(colorMaps))
-                    _color = colorMaps[random_index]
+                    random_index = np.random.randint(len(CONTOUR_COLORMAPS))
+                    _color = list(CONTOUR_COLORMAPS.keys())[random_index]
 
                 _alpha = 1 - (_alpha / 100.)                                    # Converting transparency to opacity (matplotlib "alpha" parameter)
 
@@ -1824,15 +1888,15 @@ class StereoPlots(_ToolBase):
 
                     fdcf = ax.density_contourf(x1,
                                                x2,
-                                               method = contour_methods[_method],
+                                               method = CONTOUR_METHODS[_method],
                                                measurement = apply_on,
                                                sigma = _sigma,
-                                               cmap = _color,
+                                               cmap = CONTOUR_COLORMAPS[_color],
                                                alpha = _alpha)
 
                     mask = ax.density_contour(x1,
                                               x2,
-                                              method = contour_methods[_method],
+                                              method = CONTOUR_METHODS[_method],
                                               measurement = apply_on,
                                               sigma = _sigma,
                                               colors = 'black',
@@ -1843,10 +1907,10 @@ class StereoPlots(_ToolBase):
 
                     udcf = ax.density_contour(x1,
                                               x2,
-                                              method = contour_methods[_method],
+                                              method = CONTOUR_METHODS[_method],
                                               measurement = apply_on,
                                               sigma = _sigma,
-                                              cmap = _color,
+                                              cmap = CONTOUR_COLORMAPS[_color],
                                               alpha = _alpha)
 
 
@@ -1864,8 +1928,8 @@ class StereoPlots(_ToolBase):
 
 
                 if _color == 'Random':                                          # Select a random color if not specified by the user
-                    random_index = np.random.randint(len(colors_dict))
-                    _color = list(colors_dict.keys())[random_index]
+                    random_index = np.random.randint(len(COLORS))
+                    _color = list(COLORS.keys())[random_index]
 
                 proj_types.add(_type)                                           # Add data type to projected data types set
 
@@ -1920,7 +1984,7 @@ class StereoPlots(_ToolBase):
                                         fam[1],
                                         c = 'k',
                                         marker = num_mark,
-                                        mec = colors_dict[_color],
+                                        mec = COLORS[_color],
                                         markersize = _mSize + _mSize/2.)
 
                             else:
@@ -1928,7 +1992,7 @@ class StereoPlots(_ToolBase):
                                         fam[0],
                                         c = 'k',
                                         marker = num_mark,
-                                        mec = colors_dict[_color],
+                                        mec = COLORS[_color],
                                         markersize = _mSize + _mSize/2.)
 
 
@@ -1956,14 +2020,14 @@ class StereoPlots(_ToolBase):
                                     vectorPB[1],
                                     stats[1],
                                     facecolor = "none",
-                                    edgecolor = colors_dict[_color],
+                                    edgecolor = COLORS[_color],
                                     linestyle = '-',
                                     linewidth = _lWidth)
 
                             cone_lbl = _type + ' mean confidence cone'
                             fisher_cones[cone_lbl] = Line2D([0], [0],
                                                             ls = 'None',
-                                                            mec = colors_dict[_color],
+                                                            mec = COLORS[_color],
                                                             mfc = 'None',
                                                             marker = "o",
                                                             ms = 10,
@@ -2008,8 +2072,8 @@ class StereoPlots(_ToolBase):
                         if apply_on == 'poles' or _algorithm == 'Bingham':
                             ax.pole(c1[n],
                                     c2[n],
-                                    c = colors_dict[_color],
-                                    marker = markers_dict[_marker],
+                                    c = COLORS[_color],
+                                    marker = MARKERS[_marker],
                                     mec = ('w' if _color == 'Black' else 'k'),
                                     markersize = _mSize,
                                     label = label_root + ' pole')
@@ -2017,8 +2081,8 @@ class StereoPlots(_ToolBase):
                         else:
                             ax.line(c1[n],
                                     c2[n],
-                                    c = colors_dict[_color],
-                                    marker = markers_dict[_marker],
+                                    c = COLORS[_color],
+                                    marker = MARKERS[_marker],
                                     mec = ('w' if _color == 'Black' else 'k'),
                                     markersize = _mSize,
                                     label = label_root + ' vector')
@@ -2030,8 +2094,8 @@ class StereoPlots(_ToolBase):
                         fground = ('white' if _color == 'Black' else 'black')
                         ax.plane(c1[n],
                                  c2[n],
-                                 c = colors_dict[_color],
-                                 ls = lines_dict[_line],
+                                 c = COLORS[_color],
+                                 ls = LINES[_line],
                                  linewidth = _lWidth,
                                  path_effects = [mpe.withStroke(linewidth=_lWidth*2,
                                                                 foreground=fground)],
@@ -2090,9 +2154,9 @@ class StereoPlots(_ToolBase):
 
         if TICKS_TYPE.valueAsText != 'Angular Values':
             if TICKS_TYPE.valueAsText == 'Cardinal Points':
-                card = cardinals
+                card = CARDINALS
             else:
-                card = card_hybrid
+                card = CARDINALS_HYBRID
             try:
                 ax.set_azimuth_ticklabels(card[::8//N_TICKS.value])
             except ZeroDivisionError:
