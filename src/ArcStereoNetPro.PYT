@@ -766,7 +766,7 @@ class RoseDiagrams(_ToolBase):
                                                      parameters[2].valueAsText))
 
                     for c in cursor:
-                        if str(c[1]) in zip(*parameters[3].values)[0]:
+                        if str(c[1]) in list(zip(*parameters[3].values))[0]:
                             if str(c[1]) not in dataRange:
                                 dataRange[str(c[1])] = [c[0]]
                             else:
