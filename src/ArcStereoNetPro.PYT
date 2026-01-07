@@ -2225,8 +2225,8 @@ class GraphToHyperlink(_ToolBase):
 #------------------------Output feature class (param1)-------------------------#
 
         param1 = arcpy.Parameter(displayName = 'Output Feature Class',
-                                 name = 'out_shp',
-                                 datatype = 'DeShapefile',
+                                 name = 'out_fc',
+                                 datatype = 'DEFeatureClass',
                                  parameterType = 'Required',
                                  direction = 'Output')
 
@@ -2297,7 +2297,7 @@ class GraphToHyperlink(_ToolBase):
 #---------------------------Parameters assignation-----------------------------#
 
         IN_PLOT = parameters[0]
-        OUT_SHP = parameters[1]
+        OUT_FC = parameters[1]
 
 
 
@@ -2306,16 +2306,16 @@ class GraphToHyperlink(_ToolBase):
         rows = []
         sr = []                                                                 # sr = Spatial Reference
 
-        for ID, plot_img in enumerate(IN_PLOT.values):
+        for plot_img in IN_PLOT.values:
 
             xy_file = path.splitext(str(plot_img))[0] + '_xy.txt'
             with io.open(xy_file, 'r') as temp_xy:
                 lon, lat, source_path = temp_xy.readlines()                
                 lon, lat = float(lon), float(lat)
                 sr.append(arcpy.Describe(source_path).spatialReference)
-                rows.append(((lon, lat), ID, str(plot_img)))
+                rows.append(((lon, lat), str(plot_img)))
 
-        out_path, out_name = path.split(OUT_SHP.valueAsText)
+        out_path, out_name = path.split(OUT_FC.valueAsText)
         # Set SR to None if multiple SR are found (and send warning)
         if len({s.exporttostring() for s in sr}) == 1:
             spat_ref = sr[0]
@@ -2324,10 +2324,10 @@ class GraphToHyperlink(_ToolBase):
             messages.addWarningMessage('Found conflicting SR: set to Unknown!')
         arcpy.CreateFeatureclass_management(out_path, out_name, "POINT",
                                             spatial_reference=spat_ref)
-        arcpy.AddField_management(OUT_SHP.valueAsText, "Plot", "TEXT")
+        arcpy.AddField_management(OUT_FC.valueAsText, "Plot", "TEXT")
         
-        fields = ["SHAPE@XY", "Id", "Plot"]
-        with arcpy.da.InsertCursor(OUT_SHP.valueAsText, fields) as curs:
+        fields = ["SHAPE@XY", "Plot"]
+        with arcpy.da.InsertCursor(OUT_FC.valueAsText, fields) as curs:
             for row in rows:
                 curs.insertRow(row)
 
