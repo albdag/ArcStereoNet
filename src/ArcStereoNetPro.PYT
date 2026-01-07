@@ -66,18 +66,18 @@ lines_dict = {'Solid':'-', 'Dashed':'--', 'Dotted':':', 'Dashdot':'-.'}         
 
 #---------------------------Generate Temp File Path----------------------------#
 
-def tempFile():
+def temp_filepath(file_name: str) -> str:
+    """Generate a temporary file path in the ArcGIS scratch folder.
 
-    scratchFLD = arcpy.env.scratchFolder
-    tempPath = path.join(scratchFLD, 'TempFile.png')
-    if path.exists(tempPath):                                                   # Delete previously generated preview plot, if exixsts
-        try:
-            remove(tempPath)
-        except WindowsError:                                                    # WindowsError occurs the first time ArcStereoNet has been installed
-            pass                                                                # because it automatically show the temp image result on T.O.C. (why?)
-                                                                                # VERIFY IF THIS ^^^ IS STILL THE CASE IN ARCGIS PRO. SHOULD WE REALLY DELETE IT HERE?
+    Args:
+        file_name (str): Name of the temporary file, including extension.
 
-    return tempPath
+    Returns:
+        str: Full temporary file path.
+    """
+    scratch_folder = arcpy.env.scratchFolder
+    temp_path = path.join(scratch_folder, file_name)
+    return temp_path
 
 
 
@@ -719,7 +719,7 @@ class RoseDiagrams(_ToolBase):
         if parameters[4].altered:                                               # parameters[5] = Output Image
 
             if parameters[4].value == False:
-                parameters[5].value = tempFile()
+                parameters[5].value = temp_filepath('RoseDiagram_temp.png')
                 parameters[5].enabled = False
 
             else:
@@ -1577,7 +1577,7 @@ class StereoPlots(_ToolBase):
         if parameters[6].altered:                                               # parameters[7] = Output Image
 
             if parameters[6].value == False:
-                parameters[7].value = tempFile()
+                parameters[7].value = temp_filepath('Stereoplot_temp.png')
                 parameters[7].enabled = False
 
             else:
