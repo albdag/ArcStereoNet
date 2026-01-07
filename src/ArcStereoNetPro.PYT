@@ -154,21 +154,6 @@ def filterData(dataset, type):
 
 
 
-#---------------------------Convert Unicode to String--------------------------#
-
-def uni2str(listObject):
-
-    try:
-        for i in listObject:
-            if type(i) == unicode:
-                listObject[listObject.index(i)] = str(i)
-    except NameError: # deal with python 3 error for unicode data type
-        pass
-    
-    return listObject
-
-
-
 #- - - - - - - - - - - - M. E. A. D.  A L G O R I T H M - - - - - - - - - - - -#
 
 def cos_r(values):
@@ -910,7 +895,6 @@ class RoseDiagrams(_ToolBase):
         barLengths = []
 
         for row in PLOTTING_DATA.values:
-            row = uni2str(row)                                                  # Converting from unicode to string
             _type, _color, _meanVect, _nClusts, _azmTol = row
 
             if _color == 'Random':                                              # Select a random color if not specified by the user
@@ -1769,7 +1753,6 @@ class StereoPlots(_ToolBase):
 
         if PLOT_DATA.values != None:
             for row in PLOT_DATA.values:
-                row = uni2str(row)                                              # Converting from unicode to string
                 _type, _color, _marker, _mSize, _line, _lWidth = row
 
                 if _color == 'Random':                                          # Select a random color if not specified by the user
@@ -1819,7 +1802,6 @@ class StereoPlots(_ToolBase):
 
         if CONTOUR.values != None:
             for row in CONTOUR.values:
-                row = uni2str(row)                                              # Converting from unicode to string
                 _type, _method, _sigma, _style, _color, _alpha = row
 
                 if _color == 'Random':                                          # Select a random color map if not specified by the user
@@ -1877,7 +1859,6 @@ class StereoPlots(_ToolBase):
 
         if EXTRACT_MEANS.values != None:
             for row in EXTRACT_MEANS.values:
-                row = uni2str(row)                                              # Converting from unicode to string
                 _type, _algorithm, _nClusts, _azmTol, _dipTol, _conf = row[:6]
                 _color, _marker, _mSize, _line, _lWidth = row[6:]
 
