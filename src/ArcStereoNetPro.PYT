@@ -1670,11 +1670,6 @@ class StereoPlots(_ToolBase):
             if parameters[9].valueAsText == 'Wulff (Equal Angle)':
                 warn9 = 'For better statistical results a Schmidt net type is recommended.'
                 parameters[9].setWarningMessage(warn9)
-            else:
-                parameters[9].clearMessage()
-
-        else:
-            pass
 
 
 
@@ -1685,13 +1680,6 @@ class StereoPlots(_ToolBase):
             if len(parameters[17].values) > 1:
                 warn17 = 'Apply contour on more than 1 feature may cause issues.'
                 parameters[17].setWarningMessage(warn17)
-            else:
-                parameters[17].clearMessage()
-
-        else:
-            pass
-
-
 
         return
 
