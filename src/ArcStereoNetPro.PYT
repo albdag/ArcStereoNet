@@ -143,48 +143,6 @@ def temp_filepath(file_name: str) -> str:
     temp_path = path.join(scratch_folder, file_name)
     return temp_path
 
-
-
-#-------------------------------Auto-Fill Fields-------------------------------#
-
-def AutoFill_fields(param, field_filter, default_name):
-
-    all_defaults = (None, 'azimuth', 'dip_angle', 'method', 'type')
-    current_value = param.valueAsText
-    try:
-        current_value = current_value.lower()
-    except AttributeError:
-        pass
-
-    if not param.altered or current_value in all_defaults:
-        for name in field_filter:
-            if name.lower() == default_name.lower():
-                param.value = name
-                break
-        else:
-            param.value = None
-
-
-
-#-----------------------------Auto-Fill ValueTable-----------------------------#
-
-def AutoFill_vT(param, cols, default_values, checkList=True):
-
-    vT = param.values
-
-    for col, val in zip(cols, default_values):
-        if checkList:
-            editCol = vT[-1][col] not in param.filters[col].list
-        else:
-            editCol = vT[-1][col] in (0, u'')
-
-        if editCol:
-            vT[-1][col] = val
-
-    param.values = vT
-
-
-
 #------------------------------Parameter Changed-------------------------------#
 
 def paramChanged(param):
@@ -411,6 +369,78 @@ class _ToolBase(object):
             f"installation guide at {link}"
             messages.addErrorMessage(error_msg)
             return False
+        
+        
+    def autoFillFieldParameter(
+        self,
+        parameter: arcpy.Parameter,
+        field_names: list[str],
+        field_hint: str
+    ) -> None:
+        
+        """Auto fill empty Field 'parameter' with values from 'field_names' if
+        any of them matches the 'field_hint'. This is specifically designed to
+        auto fill Field-type parameters. 
+
+        Args:
+            parameter (arcpy.Parameter): Parameter to be auto filled.
+            field_names (list[str]): Field names available for filling.
+            field_hint (str): Expected field name for filling 'parameter'.
+        """
+        
+        # Do not change parameter value if it was modified by user (altered)
+        if parameter.altered:
+            return
+        
+        # Do not change parameter value if it is the expected one
+        if ((curr_value := parameter.valueAsText) is not None and
+            curr_value.lower() == field_hint.lower()):
+            return
+
+        # Try to fill parameter with a field name that matches the hint
+        for name in field_names:
+            if name.lower() == field_hint.lower():
+                parameter.value = name
+                break
+        else:
+            parameter.value = None
+
+
+    def autoFillValueTableParameter(
+        self,
+        parameter: arcpy.Parameter,
+        defaults: tuple[int | float | str, ...],
+        skip_first_col: bool = True
+    ) -> None:
+        """Auto fill empty or invalid entries in Value Table 'parameter' with 
+        values from 'defaults'. This is specifically designed to auto fill 
+        ValueTable-type parameters. 
+
+        Args:
+            parameter (arcpy.Parameter): Parameter to be auto filled.
+            defaults (tuple[int  |  float  |  str, ...]): Default table values.
+            skip_first_col (bool, optional): Whether to skip first column of
+             the table. Defaults to True.
+
+        Raises:
+            ValueError: Lengths of 'defaults' and table columns cannot differ. 
+        """
+        table = parameter.values
+        columns = range(skip_first_col, len(table[-1]))
+        if (c := len(columns)) != (d := len(defaults)):
+            raise ValueError(f"Argument 'defaults' must contain {c} items, "\
+                             f"but {d} were found.")
+
+        for col, default in zip(columns, defaults):
+            value = table[-1][col]
+            filt = parameter.filters[col]
+            if (
+                (value != default and value in (0, '')) or
+                (filt.type == 'ValueList' and value not in filt.list)
+            ):
+                table[-1][col] = default
+
+        parameter.values = table
 
 
 #- - - - - - - - - - R  O  S  E     D  I  A  G  R  A  M  S - - - - - - - - - - #
@@ -729,8 +759,8 @@ class RoseDiagrams(_ToolBase):
                 num_types = ('SmallInteger', 'Integer', 'Single', 'Double')
                 num_fields = [f.name for f in fields if f.type in num_types]
 
-                AutoFill_fields(parameters[1], num_fields, 'Azimuth')
-                AutoFill_fields(parameters[2], string_fields, 'Type')
+                self.autoFillFieldParameter(parameters[1], num_fields, 'Azimuth')
+                self.autoFillFieldParameter(parameters[2], string_fields, 'Type')
 
             except (AttributeError, IOError):
                 for p in parameters[1:3]:
@@ -756,10 +786,9 @@ class RoseDiagrams(_ToolBase):
 
 
         if parameters[3].altered and parameters[3].values != None:
-            AutoFill_vT(parameters[3], (1, 2), ('Random', 'NO'))
-            AutoFill_vT(parameters[3], (3, 4), (1, 100), checkList=False)
-        else:
-            pass
+            self.autoFillValueTableParameter(
+                parameters[3], ('Random', 'NO', 1, 100))
+            
 
 
 
@@ -1562,10 +1591,10 @@ class StereoPlots(_ToolBase):
                 num_types = ('SmallInteger', 'Integer', 'Single', 'Double')
                 num_fields = [f.name for f in fields if f.type in num_types]
 
-                AutoFill_fields(parameters[1], num_fields, 'Azimuth')
-                AutoFill_fields(parameters[2], num_fields, 'Dip_Angle')
-                AutoFill_fields(parameters[3], string_fields, 'Method')
-                AutoFill_fields(parameters[4], string_fields, 'Type')
+                self.autoFillFieldParameter(parameters[1], num_fields, 'Azimuth')
+                self.autoFillFieldParameter(parameters[2], num_fields, 'Dip_Angle')
+                self.autoFillFieldParameter(parameters[3], string_fields, 'Method')
+                self.autoFillFieldParameter(parameters[4], string_fields, 'Type')
 
             except IOError:
                 for p in parameters[1:5]:
@@ -1600,23 +1629,18 @@ class StereoPlots(_ToolBase):
 
 
         if parameters[5].altered and parameters[5].values != None:
-            AutoFill_vT(parameters[5], (1, 2, 4), ('Random', 'Point (•)', 'NONE'))
-            AutoFill_vT(parameters[5], (3, 5), (5.0, 0.5), checkList=False)
-        else:
-            pass
+            default_param5 = ('Random', 'Point (•)', 5.0, 'NONE', 0.5)
+            self.autoFillValueTableParameter(parameters[5], default_param5)
 
         if parameters[17].altered and parameters[17].values != None:
-            defaultTexts = ('Kamb (exponential smoothing)', 'Filled', 'Random')
-            AutoFill_vT(parameters[17], (1, 3, 4), defaultTexts)
-            AutoFill_vT(parameters[17], (2, 5), (2.0, 0), checkList=False)
-        else:
-            pass
+            default_param17 = ('Kamb (exponential smoothing)', 2.0, 'Filled',
+                               'Random', 0)
+            self.autoFillValueTableParameter(parameters[17], default_param17)
 
         if parameters[19].altered and parameters[19].values != None:
-            defaultTexts = ('M.E.A.D. + Fisher', 'Random', 'Square', 'NONE')
-            AutoFill_vT(parameters[19], (1, 6, 7, 9), defaultTexts)
-            AutoFill_vT(parameters[19], (2,3,4,5,8,10), (1,50,30,95,5.0,0.5),
-                        checkList=False)
+            default_param19 = ('M.E.A.D. + Fisher', 1, 50, 30, 95, 'Random',
+                               'Square (◻)', 5.0, 'NONE', 0.5)
+            self.autoFillValueTableParameter(parameters[19], default_param19)
 
 
 
