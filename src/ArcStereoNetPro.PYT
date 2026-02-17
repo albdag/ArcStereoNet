@@ -521,11 +521,13 @@ class RoseDiagrams(_ToolBase):
         param3.filters[0].type = 'ValueList'
         param3.filters[1].type = 'ValueList'
         param3.filters[2].type = 'ValueList'
+        param3.filters[3].type = 'Range'
         param3.filters[4].type = 'Range'
 
         param3.filters[0].list = ['NONE']
         param3.filters[1].list = ['Random'] + sorted(COLORS.keys())
         param3.filters[2].list = ['NO', 'YES']
+        param3.filters[3].list = [1, 100]
         param3.filters[4].list = [0, 100]
 
 
@@ -1291,12 +1293,16 @@ class StereoPlots(_ToolBase):
         param5.filters[0].type = 'ValueList'
         param5.filters[1].type = 'ValueList'
         param5.filters[2].type = 'ValueList'
+        param5.filters[3].type = 'Range'
         param5.filters[4].type = 'ValueList'
+        param5.filters[5].type = 'Range'
 
         param5.filters[0].list = ['NONE']
         param5.filters[1].list = ['Random'] + sorted(COLORS.keys())
         param5.filters[2].list = ['NONE'] + sorted(MARKERS.keys())
+        param5.filters[3].list = [0.1, 100.0]
         param5.filters[4].list = ['NONE'] + sorted(LINES.keys())
+        param5.filters[5].list = [0.1, 10.0]
 
 
 
@@ -1474,12 +1480,14 @@ class StereoPlots(_ToolBase):
 
         param17.filters[0].type = 'ValueList'
         param17.filters[1].type = 'ValueList'
+        param17.filters[2].type = 'Range'
         param17.filters[3].type = 'ValueList'
         param17.filters[4].type = 'ValueList'
         param17.filters[5].type = 'Range'
 
         param17.filters[0].list = ['NONE']
         param17.filters[1].list = sorted(CONTOUR_METHODS.keys())
+        param17.filters[2].list = [0.01, 100.0]
         param17.filters[3].list = ['Filled', 'Unfilled']
         param17.filters[4].list = ['Random'] + list(CONTOUR_COLORMAPS.keys())
         param17.filters[5].list = [0, 100]
@@ -1524,22 +1532,28 @@ class StereoPlots(_ToolBase):
 
         param19.filters[0].type = 'ValueList'
         param19.filters[1].type = 'ValueList'
+        param19.filters[2].type = 'Range'
         param19.filters[3].type = 'Range'
         param19.filters[4].type = 'Range'
         param19.filters[5].type = 'Range'
         param19.filters[6].type = 'ValueList'
         param19.filters[7].type = 'ValueList'
+        param19.filters[8].type = 'Range'
         param19.filters[9].type = 'ValueList'
+        param19.filters[10].type = 'Range'
 
         param19.filters[0].list = ['NONE']
         param19.filters[1].list = ['M.E.A.D.', 'M.E.A.D. + Fisher', 'K-means',
                                    'Bingham']
+        param19.filters[2].list = [1, 100]
         param19.filters[3].list = [0, 100]
         param19.filters[4].list = [0, 100]
         param19.filters[5].list = [0, 99]
         param19.filters[6].list = ['Random'] + sorted(COLORS.keys())
         param19.filters[7].list = ['NONE'] + sorted(MARKERS.keys())
+        param19.filters[8].list = [0.1, 100.0]
         param19.filters[9].list = ['NONE'] + sorted(LINES.keys())
+        param19.filters[10].list = [0.1, 10.0]
 
 
 
