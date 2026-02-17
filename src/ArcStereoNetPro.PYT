@@ -140,17 +140,6 @@ def temp_filepath(file_name: str) -> str:
     temp_path = path.join(scratch_folder, file_name)
     return temp_path
 
-#------------------------------Parameter Changed-------------------------------#
-
-def paramChanged(param):
-
-    if param.altered and not param.hasBeenValidated:
-        return True
-    else:
-        return False
-
-
-
 #-------------------Distinguish Planar from Linear features--------------------#
 
 def filterData(dataset, type):
@@ -343,7 +332,19 @@ class _ToolBase(object):
         self.label = 'Tool label'
         self.description = 'Tool description.'
         self.canRunInBackground = False
-        
+
+
+    def parameterChanged(self, parameter: arcpy.Parameter) -> bool:
+        """Check if a parameter has been altered and not yet validated.
+
+        Args:
+            parameter (arcpy.Parameter): Parameter to check.
+
+        Returns:
+            bool: Whether the parameter has changed.
+        """
+        return parameter.altered and not parameter.hasBeenValidated
+    
         
     def autoFillFieldParameter(
         self,
@@ -727,7 +728,7 @@ class RoseDiagrams(_ToolBase):
 
 #-------------Updating parameters[1, 2] according to parameters[0]-------------#
 
-        if paramChanged(parameters[0]):                                         # parameters[0] = Input Feature
+        if self.parameterChanged(parameters[0]):                                         # parameters[0] = Input Feature
                                                                                 # parameters[1] = Azimuth Field
             try:                                                                # parameters[2] = Type Field
                 fields = arcpy.Describe(parameters[0].value).fields
@@ -783,7 +784,7 @@ class RoseDiagrams(_ToolBase):
 
 #------------Updating parameters[13] according to parameters[1, 12]------------#
                                                                                 # parameters[1] = Azimuth Value
-        if parameters[1].altered or paramChanged(parameters[12]):               # parameters[12] = Weighted Plot checkbox
+        if parameters[1].altered or self.parameterChanged(parameters[12]):               # parameters[12] = Weighted Plot checkbox
                                                                                 # parameters[13] = Weight Field
             if parameters[12].value:
                 parameters[13].enabled = True
@@ -807,9 +808,9 @@ class RoseDiagrams(_ToolBase):
 
 #---Updating parameters[11] warn message according to parameters[0, 1, 2, 3]---#
                                                                                 # parameters[0] = Input Feature
-        if (paramChanged(parameters[1]) or                                      # parameters[1] = Azimuth Field
-            paramChanged(parameters[3]) or                                      # parameters[2] = Type Field
-            paramChanged(parameters[11])):                                      # parameters[3] = Data to be plotted
+        if (self.parameterChanged(parameters[1]) or                                      # parameters[1] = Azimuth Field
+            self.parameterChanged(parameters[3]) or                                      # parameters[2] = Type Field
+            self.parameterChanged(parameters[11])):                                      # parameters[3] = Data to be plotted
                                                                                 # parameters[11] = Mirrored behaviour checkbox
             if parameters[11].value:
 
@@ -1697,7 +1698,7 @@ class StereoPlots(_ToolBase):
 
 #- - - - - - - - - - - - - T O O L  E X E C U T I O N - - - - - - - - - - - - -#
 
-    def execute(self, parameters, messages):
+    def execute(self, parameters: list[arcpy.Parameter], messages):
 
         """The source code of the tool."""
 
