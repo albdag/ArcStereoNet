@@ -55,14 +55,12 @@ CONTOUR_COLORMAPS = {
     "Yellow-Green-Blue": "YlGnBu",
     "Yellow-Green": "YlGn",
 }
-
-# Stereonet types
-NETS = ['Schmidt (Equal Area)', 'Wulff (Equal Angle)']
-
-# Cardinal points
-CARDINALS = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW') 
-CARDINALS_HYBRID = ('N', u'45\u00B0', u'90\u00B0', u'135\u00B0', u'180\u00B0',
-                    u'225\u00B0', u'270\u00B0', u'315\u00B0')
+# Compass labels dictionary
+COMPASS_LABELS = {
+    'Cardinals': ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'),
+    'Degrees': ('0°', '45°', '90°', '135°', '180°', '225°', '270°', '315°'),
+    'Hybrid': ('N', '45°', '90°', '135°', '180°', '225°', '270°', '315°')
+}
 
 # Colors dictionary, inspired from https://xkcd.com/color/rgb/
 COLORS = {
@@ -944,6 +942,7 @@ class RoseDiagrams(_ToolBase):
         ax.set_theta_direction(-1)
         grid_format = np.arange(0, 360, TICKSPACING.value)
         ax.set_thetagrids(grid_format, grid_format)
+        ax.grid(SHOW_GRID.value)
 
 
 #----------------------------Plotting of Data----------------------------------#
@@ -1043,10 +1042,7 @@ class RoseDiagrams(_ToolBase):
                       path_effects = [mpe.withStroke(linewidth=2, foreground='k')])
 
 
-#-------Adding Grid, Weighted on, Legend and n.of Data Label to the plot-------#
-
-        ax.grid(SHOW_GRID.value)
-
+#-------Adding Weighted on, Legend and n.of Data Label to the plot-------#
 
         if WEIGHTED.value:
             ax.text(0.0, -0.1,
@@ -1314,9 +1310,9 @@ class StereoPlots(_ToolBase):
 
         param9.category = 'Plotting Options'
 
-        param9.value = 'Schmidt (Equal Area)'
         param9.filter.type = 'ValueList'
-        param9.filter.list = NETS
+        param9.filter.list = ['Schmidt (Equal Area)', 'Wulff (Equal Angle)']
+        param9.value = 'Schmidt (Equal Area)'
 
 
 
@@ -1373,8 +1369,8 @@ class StereoPlots(_ToolBase):
         param13.category = 'Plot Customisation'
 
         param13.filter.type = 'ValueList'
-        param13.filter.list = ['Angular Values', 'Cardinal Points', 'Hybrid']
-        param13.value = 'Angular Values'
+        param13.filter.list = list(COMPASS_LABELS.keys())
+        param13.value = 'Degrees'
 
 
 
@@ -1814,6 +1810,13 @@ class StereoPlots(_ToolBase):
         title = TITLE.valueAsText if TITLE.value else IN_FEATURE.valueAsText
         ax.set_title(title, y=1.1, fontsize=18)
 
+        # Set grid and ticks
+        ax.grid(SHOW_GRID.value)
+        ax.set_azimuth_ticks(np.linspace(0, 360, N_TICKS.value, False))
+        if (n := N_TICKS.value) > 0:
+            ticklabels = COMPASS_LABELS[TICKS_TYPE.valueAsText]
+            ax.set_azimuth_ticklabels(ticklabels[::8//n])
+
 #-----------------------Plotting of selected data------------------------------#
 
 #>>> PLOTTING DATA Value Table <<<
@@ -2106,10 +2109,7 @@ class StereoPlots(_ToolBase):
 
 
 
-#----Adding Grid, Legend, n.of Data label, Colorbar & Tick Marks to the plot---#
-
-        ax.grid(SHOW_GRID.value)
-
+#----Adding Legend, n.of Data label & Colorbar to the plot---#
 
         if SHOW_LEGEND.value == True:
             from collections import OrderedDict
@@ -2151,20 +2151,6 @@ class StereoPlots(_ToolBase):
                     contourInfo,
                     fontsize = 8,
                     transform = ax.transAxes)
-
-
-        ax.set_azimuth_ticks(np.linspace(0, 360, N_TICKS.value, False))
-
-        if TICKS_TYPE.valueAsText != 'Angular Values':
-            if TICKS_TYPE.valueAsText == 'Cardinal Points':
-                card = CARDINALS
-            else:
-                card = CARDINALS_HYBRID
-            try:
-                ax.set_azimuth_ticklabels(card[::8//N_TICKS.value])
-            except ZeroDivisionError:
-                pass
-
 
 
 #-------------------------------Write Log File---------------------------------#
