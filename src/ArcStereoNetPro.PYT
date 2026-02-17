@@ -1,10 +1,11 @@
 #- - - - - - - - - - - - - I N I T I A L I Z A T I O N - - - - - - - - - - - - #
 
-#----------------------------Import Internal Libraries-------------------------#
-
-import arcpy, io
-import matplotlib
-matplotlib.use('agg')
+#--------------------------Import Internal Libraries--------------------------#
+import arcpy
+import io
+from matplotlib.figure import Figure
+from matplotlib.projections.polar import PolarAxes
+# matplotlib.use('TkAgg') use for interactive plots with plt.show()
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as mpe
 import numpy as np
@@ -15,7 +16,7 @@ from os import path, remove, startfile
 #----------------------------Import  mplstereonet------------------------------#
 
 try:
-    from mplstereonet import *
+    import mplstereonet
     MPLSTEREONET_AVAILABLE = True
 except ImportError:
     MPLSTEREONET_AVAILABLE = False
@@ -64,11 +65,8 @@ CONTOUR_COLORMAPS = {
     "Yellow-Green": "YlGn",
 }
 
-# Net types dictionary
-NETS = {
-    'Schmidt (Equal Area)': 'equal_area_stereonet',                     
-    'Wulff (Equal Angle)': 'equal_angle_stereonet'
-}
+# Stereonet types
+NETS = ['Schmidt (Equal Area)', 'Wulff (Equal Angle)']
 
 # Cardinal points
 CARDINALS = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW') 
@@ -920,7 +918,7 @@ class RoseDiagrams(_ToolBase):
         STORE_IMG = parameters[4]
         OUTPUT_IMG = parameters[5]
         IMG_DPI = parameters[6]
-        TITLE_LABEL = parameters[7]
+        TITLE = parameters[7]
         SHOW_GRID = parameters[8]
         SHOW_LEGEND = parameters[9]
         SHOW_NSAMPLES = parameters[10]
@@ -931,15 +929,6 @@ class RoseDiagrams(_ToolBase):
         TICKSPACING = parameters[15]
         RGRIDS_ANGLE = parameters[16]
         GRIDSPACE = parameters[17]
-
-
-
-#-----------------------------Setting Figure Title-----------------------------#
-
-        title = IN_FEATURE.valueAsText
-        if TITLE_LABEL.value:
-            title = TITLE_LABEL.valueAsText
-
 
 
 #-------------------------------Importing Data---------------------------------#
@@ -968,21 +957,20 @@ class RoseDiagrams(_ToolBase):
         if WRITE_LOG.value:
             stats_log = {}
 
+        # Initialize plot
+        fig = Figure(figsize=(6, 6), dpi=IMG_DPI.value)
+        ax = PolarAxes(fig, 111)
+        fig.add_subplot(ax)
 
+        # Set title
+        title = TITLE.valueAsText if TITLE.value else IN_FEATURE.valueAsText
+        ax.set_title(title, y=1.1, fontsize=18)
 
-#-----------------------Initialization of MPLStereonet-------------------------#
-
-        fig = plt.figure(figsize = (6,6))
-        ax = fig.add_subplot(111, projection = 'polar')
-
-        ax.set_title(title, y = 1.1, fontsize = 18)
-
+        # Set grid
         ax.set_theta_zero_location('N')
         ax.set_theta_direction(-1)
-
-        gridFormat = np.arange(0, 360, TICKSPACING.value)
-        ax.set_thetagrids(gridFormat, gridFormat)
-
+        grid_format = np.arange(0, 360, TICKSPACING.value)
+        ax.set_thetagrids(grid_format, grid_format)
 
 
 #----------------------------Plotting of Data----------------------------------#
@@ -1156,9 +1144,7 @@ class RoseDiagrams(_ToolBase):
 
 #----------------------Save the figure and End the tool------------------------#
 
-        plt.savefig(OUTPUT_IMG.valueAsText,
-                    dpi = IMG_DPI.value,
-                    bbox_inches = 'tight')
+        fig.savefig(OUTPUT_IMG.valueAsText, dpi='figure', bbox_inches='tight')
         plt.close('all')
 
         if STORE_IMG.value == False:
@@ -1357,7 +1343,7 @@ class StereoPlots(_ToolBase):
 
         param9.value = 'Schmidt (Equal Area)'
         param9.filter.type = 'ValueList'
-        param9.filter.list = list(NETS.keys())
+        param9.filter.list = NETS
 
 
 
@@ -1760,7 +1746,8 @@ class StereoPlots(_ToolBase):
 
         ok = self.checkExternalDependencies(messages)
         if not ok:
-            return
+            return 
+        import mplstereonet as msn
 
 #---------------------------Parameters assignation-----------------------------#
 
@@ -1775,7 +1762,7 @@ class StereoPlots(_ToolBase):
         IMG_DPI = parameters[8]
         NET_TYPE = parameters[9]
         WRITE_LOG = parameters[10]
-        TITLE_LABEL = parameters[11]
+        TITLE = parameters[11]
         N_TICKS = parameters[12]
         TICKS_TYPE = parameters[13]
         SHOW_GRID = parameters[14]
@@ -1837,17 +1824,17 @@ class StereoPlots(_ToolBase):
 
 
 #-----------------------Initialization of MPLStereonet-------------------------#
-
-        fig = plt.figure(figsize = (6,6))
-        ax = fig.add_subplot(111, projection = NETS[NET_TYPE.valueAsText])
-
-        if TITLE_LABEL.value:
-            title = TITLE_LABEL.valueAsText
+        # Initialize plot
+        fig = Figure(figsize=(6, 6), dpi=IMG_DPI.value)
+        if NET_TYPE.valueAsText == 'Wulff (Equal Angle)':
+            ax = msn.stereonet_axes.EqualAngleAxes(fig, 111)
         else:
-            title = IN_FEATURE.valueAsText
-        ax.set_title(title, y = 1.1, fontsize = 18)
+            ax = msn.stereonet_axes.EqualAreaAxes(fig, 111)
+        fig.add_subplot(ax)
 
-
+        # Set title
+        title = TITLE.valueAsText if TITLE.value else IN_FEATURE.valueAsText
+        ax.set_title(title, y=1.1, fontsize=18)
 
 #-----------------------Plotting of selected data------------------------------#
 
@@ -1983,21 +1970,21 @@ class StereoPlots(_ToolBase):
 
                     while True:
                         try:
-                            centers = kmeans(x1, x2, num=_nClusts,
+                            centers = msn.kmeans(x1, x2, num=_nClusts,
                                              measurement=apply_on)
                             break
                         except np.linalg.LinAlgError:
                             _nClusts -= 1
 
                     if apply_on == 'poles':
-                        c1, c2 = geographic2pole(*zip(*centers))
+                        c1, c2 = msn.geographic2pole(*zip(*centers))
                     else:
-                        c1, c2 = geographic2plunge_bearing(*zip(*centers))
+                        c1, c2 = msn.geographic2plunge_bearing(*zip(*centers))
 
 
                 elif _algorithm == 'Bingham':                                   # Extract Bingham Statistics
 
-                    c1, c2 = zip(fit_girdle(x1, x2, measurement = apply_on))
+                    c1, c2 = zip(msn.fit_girdle(x1, x2, measurement = apply_on))
 
 
 
@@ -2040,15 +2027,15 @@ class StereoPlots(_ToolBase):
                         if 'Fisher' in _algorithm:                              # Extract Fisher mean vector(s) and stats
 
                             if apply_on == 'poles':
-                                vectorPB, stats = find_fisher_stats(azm[i], inc[i],
+                                vectorPB, stats = msn.find_fisher_stats(azm[i], inc[i],
                                                                     measurement = 'poles',
                                                                     conf = _conf)
-                                vectorSD = plunge_bearing2pole(*vectorPB)
+                                vectorSD = msn.plunge_bearing2pole(*vectorPB)
                                 c1.append(vectorSD[0][0])
                                 c2.append(vectorSD[1][0])
 
                             else:
-                                vectorPB, stats = find_fisher_stats(inc[i], azm[i],
+                                vectorPB, stats = msn.find_fisher_stats(inc[i], azm[i],
                                                                     measurement = 'lines',
                                                                     conf = _conf)
                                 c1.append(vectorPB[0])
@@ -2176,11 +2163,11 @@ class StereoPlots(_ToolBase):
 
 
         if SHOW_COLORBAR.value == True:
-            cbaxes = fig.add_axes([-0.2, 0.1, 0.03, 0.8])                       # left, bottom, width, height
+            cbax = fig.add_axes((-0.2, 0.1, 0.03, 0.8))                       # left, bottom, width, height
             try:
-                plt.colorbar(fdcf, cax = cbaxes)
+                fig.colorbar(fdcf, cax=cbax)
             except NameError:
-                plt.colorbar(udcf, cax = cbaxes)
+                fig.colorbar(udcf, cax=cbax)
             contourInfo = u'Contour applied on:\n{}\n\nMethod: {}\nStd. Dev.: {}'.format(*CONTOUR.values[0][:3])
             ax.text(-0.29, 0.0,
                     contourInfo,
@@ -2264,9 +2251,7 @@ class StereoPlots(_ToolBase):
 
 #----------------------Save the figure and End the tool------------------------#
 
-        plt.savefig(OUTPUT_IMG.valueAsText,
-                    dpi = IMG_DPI.value,
-                    bbox_inches = 'tight')
+        fig.savefig(OUTPUT_IMG.valueAsText, dpi='figure', bbox_inches='tight')
         plt.close('all')
 
         if STORE_IMG.value == False:
