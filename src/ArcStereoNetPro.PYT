@@ -2,6 +2,7 @@
 
 #--------------------------Import Internal Libraries--------------------------#
 import arcpy
+import importlib.util
 import io
 from matplotlib.figure import Figure
 from matplotlib.projections.polar import PolarAxes
@@ -13,19 +14,9 @@ from os import path, remove, startfile
 
 
 
-#----------------------------Import  mplstereonet------------------------------#
-
-try:
-    import mplstereonet
-    MPLSTEREONET_AVAILABLE = True
-except ImportError:
-    MPLSTEREONET_AVAILABLE = False
-
-#-----------------------------Add output function------------------------------#
-
-arcpy.env.addOutputsToMap = False                                               # manage the addition of output image into T.O.C.
-
-
+#-----------------------------Environment Settings----------------------------#
+# Prevent adding output image to Contents pane
+arcpy.env.addOutputsToMap = False                                          
 
 #------------------------------Global Constants-------------------------------#
 # Contour methods dictionary
@@ -126,7 +117,17 @@ LINES = {
 
 #- - - - - - - - - - - - U S E F U L  F U N C T I O N S - - - - - - - - - - - -#
 
-#---------------------------Generate Temp File Path----------------------------#
+def is_module_available(name: str) -> bool:
+    """Check if a module is available in the current Python environment.
+
+    Args:
+        name (str): Module's name.
+
+    Returns:
+        bool: Whether the module is available.
+    """
+    return importlib.util.find_spec(name) is not None
+
 
 def temp_filepath(file_name: str) -> str:
     """Generate a temporary file path in the ArcGIS scratch folder.
@@ -344,29 +345,6 @@ class _ToolBase(object):
         self.label = 'Tool label'
         self.description = 'Tool description.'
         self.canRunInBackground = False
-
-
-    def checkExternalDependencies(self, messages) -> bool:
-
-        """Check for the availabilty of all required external Python libraries.
-        Add dedicated error message if dependencies are missing.
-
-        Args:
-            messages: Geoprocessing messages object.
-
-        Returns:
-            bool: Whether all external dependencies are available.
-        """
-
-        if MPLSTEREONET_AVAILABLE:
-            return True
-        else:
-            link = "https://github.com/albdag/ArcStereoNet/wiki/1.-Installation#installation-for-arcgis-pro"
-            error_msg = "Mplstereonet dependency is missing from your " \
-            "current Python environment. For more info, check the " \
-            f"installation guide at {link}"
-            messages.addErrorMessage(error_msg)
-            return False
         
         
     def autoFillFieldParameter(
@@ -904,11 +882,6 @@ class RoseDiagrams(_ToolBase):
 
         """The source code of the tool."""
         
-        ok = self.checkExternalDependencies(messages)
-        if not ok:
-            return
-
-
 #---------------------------Parameters assignation-----------------------------#
 
         IN_FEATURE = parameters[0]
@@ -1744,10 +1717,15 @@ class StereoPlots(_ToolBase):
 
         """The source code of the tool."""
 
-        ok = self.checkExternalDependencies(messages)
-        if not ok:
-            return 
-        import mplstereonet as msn
+        # Check for mplstereonet availability
+        if is_module_available('mplstereonet'):
+            import mplstereonet as msn
+        else:
+            link = "https://github.com/albdag/ArcStereoNet/wiki/1.-Installation#installation-for-arcgis-pro"
+            error_msg = "You need 'mplstereonet' dependency to run this tool. "\
+                        f"For more info, check the installation guide at {link}"
+            messages.addErrorMessage(error_msg)
+            return
 
 #---------------------------Parameters assignation-----------------------------#
 
