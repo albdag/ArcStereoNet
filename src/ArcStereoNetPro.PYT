@@ -322,6 +322,49 @@ class Toolbox(object):
 
 class _ToolBase(object):
 
+    # Field hints for auto filling input Fields parameters (must be lowercase)
+    AZIMUTH_HINTS = (
+        'azimuth',
+        'orientation',
+        'orientations',
+        'strike',
+        'strikes',
+        'strike_angle',
+        'strike_angles',
+        'strike angle',
+        'strike angles',
+        'trend',
+        'trends'
+    )
+    DIP_HINTS = (
+        'dip',
+        'dips',
+        'dip_angle',
+        'dip_angles',
+        'dip angle',
+        'dip angles',
+        'inclination',
+        'inclinations',
+        'plunge',
+        'plunges'
+    )
+    METHOD_HINTS = (
+        'method',
+        'methods',
+        'rule',
+        'rules'
+    )
+    TYPE_HINTS = (
+        'category',
+        'categories',
+        'kind',
+        'kinds',
+        'label',
+        'labels',
+        'type',
+        'types'
+    )
+
     def __init__(self) -> None:
 
         """Base class for all tools."""
@@ -342,37 +385,50 @@ class _ToolBase(object):
         """
         return parameter.altered and not parameter.hasBeenValidated
     
+
+    def parameterCleared(self, parameter: arcpy.Parameter) -> bool:
+
+        """Check if a parameter has been cleared and not yet validated.
+
+        Args:
+            parameter (arcpy.Parameter): Parameter to check.
+
+        Returns:
+            bool: Whether the parameter was cleared.
+        """
+                
+        return not parameter.value and not parameter.hasBeenValidated
+    
         
     def autoFillFieldParameter(
         self,
         parameter: arcpy.Parameter,
-        field_names: list[str],
-        field_hint: str
+        field_list: Iterable[arcpy.Field],
+        field_hints: Iterable[str]
     ) -> None:
         
-        """Auto fill empty Field 'parameter' with values from 'field_names' if
-        any of them matches the 'field_hint'. This is specifically designed to
-        auto fill Field-type parameters. 
+        """Auto fill an empty Field 'parameter' with a field from 'field_list'
+        that matches any of the 'field_hints'. This method is designed to auto
+        fill only a Field-type parameter.
 
         Args:
-            parameter (arcpy.Parameter): Parameter to be auto filled.
-            field_names (list[str]): Field names available for filling.
-            field_hint (str): Expected field name for filling 'parameter'.
+            parameter (arcpy.Parameter): Field parameter to be filled.
+            field_list (Iterable[arcpy.Field]): Fields available for filling.
+            field_hints (Iterable[str]): Field hints to be matched for filling.
         """
-        
-        # Do not change parameter value if it was modified by user (altered)
-        if parameter.altered:
-            return
-        
-        # Do not change parameter value if it is the expected one
-        if ((curr_value := parameter.valueAsText) is not None and
-            curr_value.lower() == field_hint.lower()):
+
+        # Extract a dictionary of names and aliases from available fields
+        fields_dict = {f.name: f.aliasName for f in field_list}
+
+        # Do not alter a parameter with a valid name or alias
+        if (parameter.valueAsText in fields_dict.keys() or 
+            parameter.valueAsText in fields_dict.values()):
             return
 
-        # Try to fill parameter with a field name that matches the hint
-        for name in field_names:
-            if name.lower() == field_hint.lower():
-                parameter.value = name
+        # Try to fill parameter with a field whose name or alias matches a hint
+        for name, alias in fields_dict.items():
+            if name.lower() in field_hints or alias.lower() in field_hints:
+                parameter.value = name # make sure to always assign field name
                 break
         else:
             parameter.value = None
@@ -493,7 +549,7 @@ class RoseDiagrams(_ToolBase):
                                  parameterType = 'Required',
                                  direction = 'Input')
 
-        param1.filter.list = ['Short', 'Long', 'Float', 'Single', 'Double']
+        param1.filter.list = NUM_FIELD_FILTERS
         param1.parameterDependencies = [param0.name]
 
 
@@ -672,7 +728,7 @@ class RoseDiagrams(_ToolBase):
 
         param13.category = 'Plotting Options'
 
-        param13.filter.list = ['Short', 'Long', 'Float', 'Single', 'Double']
+        param13.filter.list = NUM_FIELD_FILTERS
         param13.parameterDependencies = [param0.name]
 
 
@@ -752,30 +808,34 @@ class RoseDiagrams(_ToolBase):
 
 #- - - - - - - - - - - - - - - UPDATE  PARAMETERS - - - - - - - - - - - - - - -#
 
-    def updateParameters(self, parameters):
+    def updateParameters(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
-        has been changed."""
+        validation is performed. This method is called whenever a parameter has
+        been changed.
+        
+        Args:
+            parameters (list[arcpy.Parameter]): Tool's parameters.
+        """
 
+        # Parameters accessed by this method
+        Input_Feature = parameters[0] # Feature Class
+        Azimuth_Field = parameters[1] # Field
+        Type_Field = parameters[2] # Field
 
-#-------------Updating parameters[1, 2] according to parameters[0]-------------#
+        # Attempt to fill Azimuth and Type fields parameters with matching 
+        # fields from the selected Input Feature. Clear them if Input Feature
+        # parameter is empty
+        if self.parameterCleared(Input_Feature):
+            Azimuth_Field.value, Type_Field.value = None, None
 
-        if self.parameterChanged(parameters[0]):                                         # parameters[0] = Input Feature
-                                                                                # parameters[1] = Azimuth Field
-            try:                                                                # parameters[2] = Type Field
-                fields = arcpy.Describe(parameters[0].value).fields
-                string_fields = [f.name for f in fields if f.type == 'String']
-                num_types = ('SmallInteger', 'Integer', 'Single', 'Double')
-                num_fields = [f.name for f in fields if f.type in num_types]
-
-                self.autoFillFieldParameter(parameters[1], num_fields, 'Azimuth')
-                self.autoFillFieldParameter(parameters[2], string_fields, 'Type')
-
-            except (AttributeError, IOError):
-                for p in parameters[1:3]:
-                    p.value = None
-
+        elif self.parameterChanged(Input_Feature):
+            describe = arcpy.da.Describe(Input_Feature.value)
+            fields: list[arcpy.Field] = describe['fields']
+            numf = [f for f in fields if f.type in NUM_FIELD_TYPES]
+            strf = [f for f in fields if f.type == 'String']
+            self.autoFillFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
+            self.autoFillFieldParameter(Type_Field, strf, self.TYPE_HINTS)
 
 
 #-------------Updating parameters[3] according to parameters[0, 2]-------------#
@@ -831,13 +891,14 @@ class RoseDiagrams(_ToolBase):
         return
 
 
-
-#--------------------------------Other Functions-------------------------------#
-
     def updateMessages(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
+        parameter. This method is called after internal validation.
+
+        Args:
+            parameters (list[arcpy.Parameter]): Tool's parameters.
+        """
 
         # Parameters accessed by this method
         Input_Feature = parameters[0] # Feature Class
@@ -1204,7 +1265,7 @@ class StereoPlots(_ToolBase):
                                  parameterType = 'Required',
                                  direction = 'Input')
 
-        param1.filter.list = ['Short', 'Long', 'Float', 'Single', 'Double']
+        param1.filter.list = NUM_FIELD_FILTERS
         param1.parameterDependencies = [param0.name]
 
 
@@ -1217,7 +1278,7 @@ class StereoPlots(_ToolBase):
                                  parameterType = 'Required',
                                  direction = 'Input')
 
-        param2.filter.list = ['Short', 'Long', 'Float', 'Single', 'Double']
+        param2.filter.list = NUM_FIELD_FILTERS
         param2.parameterDependencies = [param0.name]
 
 
@@ -1561,39 +1622,40 @@ class StereoPlots(_ToolBase):
 
 #- - - - - - - - - - - - - - - UPDATE  PARAMETERS - - - - - - - - - - - - - - -#
 
-    def updateParameters(self, parameters):
+    def updateParameters(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
-        has been changed."""
+        validation is performed. This method is called whenever a parameter has
+        been changed.
+        
+        Args:
+            parameters (list[arcpy.Parameter]): Tool's parameters.
+        """
 
+        # Parameters accessed by this method
+        Input_Feature = parameters[0] # Feature Class
+        Azimuth_Field = parameters[1] # Field
+        Dip_Field = parameters[2] # Field
+        Method_Field = parameters[3] # Field
+        Type_Field = parameters[4] # Field
 
+        # Attempt to fill Azimuth, Dip, Method and Type fields parameters with
+        # matching fields from the selected Input Feature. Clear them if Input
+        # Feature parameter is empty
+        if self.parameterCleared(Input_Feature):
+            Azimuth_Field.value, Dip_Field.value = None, None
+            Method_Field.value, Type_Field.value = None, None
 
-#----------Updating parameters[1, 2, 3, 4] according to parameters[0]----------#
-                                                                                # parameters[0] = Input Feature
-        if parameters[0].value:                                                 # parameters[1] = Azimuth Field
-            try:                                                                # parameters[2] = Dip Angle Field
-                fields = arcpy.Describe(parameters[0].value).fields             # parameters[3] = Method Field
-                string_fields = [f.name for f in fields if f.type == 'String']  # parameters[4] = Type Field
-                num_types = ('SmallInteger', 'Integer', 'Single', 'Double')
-                num_fields = [f.name for f in fields if f.type in num_types]
-
-                self.autoFillFieldParameter(parameters[1], num_fields, 'Azimuth')
-                self.autoFillFieldParameter(parameters[2], num_fields, 'Dip_Angle')
-                self.autoFillFieldParameter(parameters[3], string_fields, 'Method')
-                self.autoFillFieldParameter(parameters[4], string_fields, 'Type')
-
-            except IOError:
-                for p in parameters[1:5]:
-                    p.value = None
-
-        else:
-            for p in parameters[1:5]:
-                p.value = None
-                if p.datatype != 'Field':
-                    p.filter.list = []
-
-
+        elif self.parameterChanged(Input_Feature):
+            describe = arcpy.da.Describe(Input_Feature.value)
+            fields: list[arcpy.Field] = describe['fields']
+            numf = [f for f in fields if f.type in NUM_FIELD_TYPES]
+            strf = [f for f in fields if f.type == 'String']
+            self.autoFillFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
+            self.autoFillFieldParameter(Dip_Field, numf, self.DIP_HINTS)
+            self.autoFillFieldParameter(Method_Field, strf, self.METHOD_HINTS)
+            self.autoFillFieldParameter(Type_Field, strf, self.TYPE_HINTS)
+                                                                        
 
 #---------Updating parameters[5, 17, 19] according to parameters[0, 4]---------#
                                                                                 # parameters[0] = Input Feature
