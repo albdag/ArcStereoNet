@@ -112,8 +112,9 @@ LINES = {
     'Dashdot (-·-)': '-.'
 }
 
-# ArcGIS numerical datatypes
-NUM_DATATYPES = ('BigInteger', 'SmallInteger', 'Integer', 'Single', 'Double')
+# ArcGIS numerical field types and field filters
+NUM_FIELD_TYPES = ['BigInteger', 'SmallInteger', 'Integer', 'Single', 'Double']
+NUM_FIELD_FILTERS = ['Short', 'Long', 'Single', 'Double']
 
 
 #- - - - - - - - - - - - U S E F U L  F U N C T I O N S - - - - - - - - - - - -#
