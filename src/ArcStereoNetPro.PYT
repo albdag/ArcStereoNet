@@ -10,8 +10,8 @@ from matplotlib.projections.polar import PolarAxes
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as mpe
 import numpy as np
-from os import path, remove, startfile
-
+from typing import Any, Iterable
+from os import path, startfile
 
 
 #-----------------------------Environment Settings----------------------------#
@@ -174,13 +174,6 @@ def sin_r(values):
 
 def linearize(values):
     return [v if abs(v-min(values)) <= 180 else v-360 for v in values]
-
-def isObtuse(values):
-    values_fix = linearize(values)
-    if max(values_fix) - min(values_fix) > 180:
-        return True
-    else:
-        return False
 
 
 def avg_angle(values, weights=None):
@@ -418,6 +411,30 @@ class _ToolBase(object):
         parameter.values = table
 
 
+    def whereClause(
+        self,
+        fc: arcpy.Parameter,
+        field: arcpy.Parameter,
+        operator: str,
+        value: Iterable[Any] | Any
+    ) -> str:
+        """Generate a where clause, useful when iterating data using cursors.
+
+        Args:
+            fc (arcpy.Parameter): Feature class to be processed by cursor.
+            field (arcpy.Parameter): Field used in where clause.
+            operator (str): SQL operator used in where clause.
+            value (Iterable[Any] | Any): Target value(s) used in where clause.
+
+        Returns:
+            str: SQL-formatted where clause.
+        """
+        fieldname = arcpy.AddFieldDelimiters(fc.valueAsText, field.valueAsText)
+        if operator in ('IN', 'NOT IN'):
+            value = f'''({", ".join(f"'{x}'" for x in value)})'''
+        return f'{fieldname} {operator} {value}'
+
+
 #- - - - - - - - - - R  O  S  E     D  I  A  G  R  A  M  S - - - - - - - - - - #
 
 class RoseDiagrams(_ToolBase):
@@ -430,6 +447,18 @@ class RoseDiagrams(_ToolBase):
         self.label = 'Rose Diagrams'
         self.description = 'Use this tool to plot rose diagrams'
 
+
+    def hasObtuseSpread(self, angles: list[int | float]) -> bool:
+        """Check if the provided array of angles spreads more than 180 degrees.
+
+        Args:
+            angles (list[int | float]): Angles in range [0, 360] degrees.
+
+        Returns:
+            bool: Whether the angles spread more than 180 degrees.
+        """
+        array = np.unwrap(np.array(angles), period=360)
+        return array.max() - array.min() > 180
 
 
 #- - - - - - - - - - - - - - - - - PARAMETERS - - - - - - - - - - - - - - - - -#
@@ -801,70 +830,54 @@ class RoseDiagrams(_ToolBase):
 
 #--------------------------------Other Functions-------------------------------#
 
-    def updateMessages(self, parameters):
+    def updateMessages(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
 
-#---Updating parameters[11] warn message according to parameters[0, 1, 2, 3]---#
-                                                                                # parameters[0] = Input Feature
-        if (self.parameterChanged(parameters[1]) or                                      # parameters[1] = Azimuth Field
-            self.parameterChanged(parameters[3]) or                                      # parameters[2] = Type Field
-            self.parameterChanged(parameters[11])):                                      # parameters[3] = Data to be plotted
-                                                                                # parameters[11] = Mirrored behaviour checkbox
-            if parameters[11].value:
+        # Parameters accessed by this method
+        Input_Feature = parameters[0] # Feature Class
+        Azimuth_Field = parameters[1] # Field
+        Type_Field = parameters[2] # Field
+        Plot_Data = parameters[3] # ValueTable
+        Mirrored = parameters[11] # GPBoolean
+        Weighted = parameters[12] # GPBoolean
+        Weight_Field = parameters[13] # Field
 
-                try:
-                    dataRange = {}
-                    cursor =  arcpy.da.SearchCursor(parameters[0].valueAsText,
-                                                    (parameters[1].valueAsText,
-                                                     parameters[2].valueAsText))
-
-                    for c in cursor:
-                        if str(c[1]) in list(zip(*parameters[3].values))[0]:
-                            if str(c[1]) not in dataRange:
-                                dataRange[str(c[1])] = [c[0]]
-                            else:
-                                dataRange[str(c[1])].append(c[0])
-
-                    warnList = [k for k, v in dataRange.items() if isObtuse(v)]
-                    if len(warnList) != 0:
-                        msg = 'The following data types seem to cover a range greater than 180 degrees: {}'.format(str(warnList))
-                        parameters[11].setWarningMessage(msg)
+        # Set warning to Mirrored Behaviour option if azimuth data spreads more
+        # than 180 degrees for data types added to Data to Plot value table
+        if Mirrored.value and ((
+            self.parameterChanged(Azimuth_Field) or                                     
+            self.parameterChanged(Plot_Data) or                                      
+            self.parameterChanged(Mirrored)
+        )):                                      
+            spreads: dict[str, list[int | float]] = {}
+            fields = (Azimuth_Field.valueAsText, Type_Field.valueAsText)
+            plotted = [v[0] for v in Plot_Data.values]
+            where = self.whereClause(Input_Feature, Type_Field, 'IN', plotted)
+            with arcpy.da.SearchCursor(
+                Input_Feature.value, fields, where) as curs:
+                for row in curs:
+                    azimuth, type_lbl = row[0], row[1]
+                    if type_lbl in spreads:
+                        spreads[type_lbl].append(azimuth)
                     else:
-                        parameters[11].clearMessage()
+                        spreads[type_lbl] = [azimuth]
 
-                except (RuntimeError, TypeError):
-                    pass
+            warns = [k for k, v in spreads.items() if self.hasObtuseSpread(v)]
+            if len(warns):
+                msg = f'Azimuth data of {warns} spread more than 180 degrees.'
+                Mirrored.setWarningMessage(msg)
 
-            else:
-                parameters[11].clearMessage()
-
-
-
-#----Updating parameters[13] warn message according to parameters[0, 12, 13]---#
-                                                                                #parameters[0] = Input Feature
-        if parameters[12].value:                                                #parameters[12] = Weighted Plot checkbox
-                                                                                #parameters[13] = Weight Field
-            try:
-                wgts = arcpy.da.SearchCursor(parameters[0].valueAsText,
-                                             parameters[13].valueAsText)
-                if min(wgts)[0] < 0:
-                    msg = 'The selected field contains negative values. Weights should be >= 0.'
-                    parameters[13].setWarningMessage(msg)
-                else:
-                    parameters[13].clearMessage()
-
-            except (RuntimeError, TypeError):
-                pass
-
-        else:
-            parameters[13].clearMessage()
-
-
+        # Set warning to Weight Field if it contains negative values                                                            
+        if Weighted.value:                                                                                               
+            with arcpy.da.SearchCursor(
+                Input_Feature.value, Weight_Field.valueAsText) as curs:
+                if min(curs)[0] < 0:
+                    msg = 'The selected data contains negative values.'
+                    Weight_Field.setWarningMessage(msg)
 
         return
-
 
 
     def isLicensed(self):
