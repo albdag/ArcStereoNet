@@ -112,6 +112,9 @@ LINES = {
     'Dashdot (-·-)': '-.'
 }
 
+# ArcGIS numerical datatypes
+NUM_DATATYPES = ('BigInteger', 'SmallInteger', 'Integer', 'Single', 'Double')
+
 
 #- - - - - - - - - - - - U S E F U L  F U N C T I O N S - - - - - - - - - - - -#
 
