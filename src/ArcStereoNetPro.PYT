@@ -4,6 +4,8 @@
 import arcpy
 import importlib.util
 import io
+import re
+import shlex
 from matplotlib.figure import Figure
 from matplotlib.projections.polar import PolarAxes
 # matplotlib.use('TkAgg') use for interactive plots with plt.show()
@@ -373,6 +375,34 @@ class _ToolBase(object):
         self.description = 'Tool description.'
         self.canRunInBackground = False
 
+    
+    def _getRawValueTable(self, parameter: arcpy.Parameter) -> list[list]:
+
+        """Return raw values extracted from a ValueTable parameter. Raw values
+        differ from normal values obtained with 'parameter.values' because are
+        extracted from 'parameter.valueAsText', then parsed and recompiled as
+        classic ValueTable data (list of lists). This allows preserving special
+        value characters (like '#' indicating empty values), not accessible via
+        'parameter.values'.
+
+        Raises:
+            TypeError: Datatype of 'parameter' must be "Value Table".
+
+        Returns:
+            list[list]: Raw ValueTable values.
+        """
+
+        # Enforce requirement of a ValueTable parameter
+        if (dt := parameter.datatype) != 'Value Table':
+            raise TypeError(f"Parameter must be of type Value Table, not {dt}")
+        
+        # Rows: split on ';' character, excluding ';' inside string values
+        # Columns: split on ' ' character, excluding ' ' inside string values
+        rows = re.split(r";(?=(?:[^']*'[^']*')*[^']*$)", parameter.valueAsText)
+        raw_table = [shlex.split(r.strip()) for r in rows]
+        
+        return raw_table
+
 
     def parameterChanged(self, parameter: arcpy.Parameter) -> bool:
         """Check if a parameter has been altered and not yet validated.
@@ -434,39 +464,58 @@ class _ToolBase(object):
             parameter.value = None
 
 
-    def autoFillValueTableParameter(
+    def resolveValueTableParameter(
         self,
         parameter: arcpy.Parameter,
         defaults: tuple[int | float | str, ...],
         skip_first_col: bool = True
     ) -> None:
+        
         """Auto fill empty or invalid entries in Value Table 'parameter' with 
-        values from 'defaults'. This is specifically designed to auto fill 
-        ValueTable-type parameters. 
+        values from 'defaults'.
 
         Args:
-            parameter (arcpy.Parameter): Parameter to be auto filled.
-            defaults (tuple[int  |  float  |  str, ...]): Default table values.
+            parameter (arcpy.Parameter): ValueTable parameter to be filled.
+            defaults (tuple[int | float | str, ...]): Default table values.
             skip_first_col (bool, optional): Whether to skip first column of
              the table. Defaults to True.
 
         Raises:
+            TypeError: Datatype of 'parameter' must be "Value Table".
             ValueError: Lengths of 'defaults' and table columns cannot differ. 
         """
-        table = parameter.values
-        columns = range(skip_first_col, len(table[-1]))
-        if (c := len(columns)) != (d := len(defaults)):
-            raise ValueError(f"Argument 'defaults' must contain {c} items, "\
-                             f"but {d} were found.")
 
-        for col, default in zip(columns, defaults):
-            value = table[-1][col]
-            filt = parameter.filters[col]
-            if (
-                (value != default and value in (0, '')) or
-                (filt.type == 'ValueList' and value not in filt.list)
-            ):
-                table[-1][col] = default
+        # Enforce requirement of a ValueTable parameter
+        if (dt := parameter.datatype) != 'Value Table':
+            raise TypeError(f"Parameter must be of type Value Table, not {dt}")
+
+        # Do nothing if ValueTable parameter is invalid
+        if (table := parameter.values) is None:
+            return
+        
+        # Raise error if lengths of 'defaults' and table columns are different
+        columns = range(skip_first_col, len(table[0]))
+        if (c := len(columns)) != (d := len(defaults)):
+            err = f"Expected {c} items in 'defaults', but {d} were found."
+            raise ValueError(err)
+
+        # Replace invalid or empty values of table with default ones
+        raw_table = self._getRawValueTable(parameter)
+        for row in range(len(table)):
+            for col, default in zip(columns, defaults):
+                value, raw_value = table[row][col], raw_table[row][col]
+                filt = parameter.filters[col]
+
+                # Fix empty values
+                if raw_value == '#' and value != default:
+                    table[row][col] = default
+                # Fix numeric values out of range
+                elif filt.type == 'Range': 
+                    vmin, vmax = filt.list
+                    table[row][col] = max(vmin, min(value, vmax))
+                # Fix values not in list
+                elif filt.type == 'ValueList': 
+                    table[row][col] = value if value in filt.list else default
 
         parameter.values = table
 
@@ -498,6 +547,8 @@ class _ToolBase(object):
 #- - - - - - - - - - R  O  S  E     D  I  A  G  R  A  M  S - - - - - - - - - - #
 
 class RoseDiagrams(_ToolBase):
+
+    VALUETABLE_DEFAULTS = {'Plot_Data': ('Random', 'NO', 1, 100)}
 
     def __init__(self):
 
@@ -572,7 +623,7 @@ class RoseDiagrams(_ToolBase):
         param3 = arcpy.Parameter(displayName = 'Data to be plotted',
                                  name = 'plotting_data',
                                  datatype = 'GPValueTable',
-                                 parameterType = 'Required',
+                                 parameterType = 'Optional',
                                  direction = 'Input',
                                  multiValue = True)
 
@@ -588,7 +639,7 @@ class RoseDiagrams(_ToolBase):
         param3.filters[3].type = 'Range'
         param3.filters[4].type = 'Range'
 
-        param3.filters[0].list = ['NONE']
+        param3.filters[0].list = []
         param3.filters[1].list = ['Random'] + sorted(COLORS.keys())
         param3.filters[2].list = ['NO', 'YES']
         param3.filters[3].list = [1, 100]
@@ -822,6 +873,7 @@ class RoseDiagrams(_ToolBase):
         Input_Feature = parameters[0] # Feature Class
         Azimuth_Field = parameters[1] # Field
         Type_Field = parameters[2] # Field
+        Plot_Data = parameters[3] # ValueTable
 
         # Attempt to fill Azimuth and Type fields parameters with matching 
         # fields from the newly selected Input Feature. Clear them if the Input
@@ -836,31 +888,24 @@ class RoseDiagrams(_ToolBase):
             strf = [f for f in fields if f.type == 'String']
             self.inferFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
             self.inferFieldParameter(Type_Field, strf, self.TYPE_HINTS)
+        # Update data types value list of Plot Data ValueTable parameter when
+        # Type Field parameter changes. Clear value list if Type Field is empty
+        if Type_Field.value is None:
+            Plot_Data.filters[0].list = []
 
+        elif self.parameterChanged(Type_Field):
+            with arcpy.da.SearchCursor(
+                Input_Feature.value, Type_Field.valueAsText) as curs:
+                data_types = sorted(set((row[0] for row in curs)))
+                Plot_Data.filters[0].list = data_types
 
-#-------------Updating parameters[3] according to parameters[0, 2]-------------#
-                                                                                # parameters[0] = Input Feature
-        if parameters[2].altered:                                               # parameters[2] = Type Field
-                                                                                # parameters[3] = Data to be plotted
-            try:
-                cursor = arcpy.da.SearchCursor(parameters[0].valueAsText,
-                                               parameters[2].valueAsText)
-                entries_p3 = set([str(c[0]) for c in cursor if str(c[0]).strip() != ''])
-                parameters[3].filters[0].list = sorted(list(entries_p3))
-
-            except (RuntimeError, TypeError):
-                parameters[3].filters[0].list = ['NONE']
-
-        else:
-            parameters[3].filters[0].list = ['NONE']
-
-
-        if parameters[3].altered and parameters[3].values != None:
-            self.autoFillValueTableParameter(
-                parameters[3], ('Random', 'NO', 1, 100))
-            
-
-
+        # Attempt to fill empty or invalid entries of Plot Data ValueTable 
+        # parameter when it changes (entry added, modified, moved or removed)
+        # if self.parameterChanged(Plot_Data):
+        if self.parameterChanged(Plot_Data):
+            defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
+            self.resolveValueTableParameter(Plot_Data, defaults)
+                                                                                
 
 #--------------Updating parameters[5] according to parameters[4]---------------#
                                                                                 # parameters[4] = Store Image Output checkbox
@@ -1227,6 +1272,19 @@ class RoseDiagrams(_ToolBase):
 
 class StereoPlots(_ToolBase):
 
+    VALUETABLE_DEFAULTS = {
+        'Plot_Data': (
+            'Random', 'Point (•)', 5.0, 'NONE', 0.5
+        ),
+        'Contour_Data': (
+            'Kamb (exponential smoothing)', 2.0, 'Filled', 'Random', 0
+        ),
+        'Mean_Vector_Data': (
+            'M.E.A.D. + Fisher', 1, 50, 30, 95, 'Random', 'Square (◻)', 5.0, 
+            'NONE', 0.5
+        )
+    }
+
     def __init__(self):
 
         """Define the tool (tool name is the name of the class)."""
@@ -1331,7 +1389,7 @@ class StereoPlots(_ToolBase):
         param5.filters[4].type = 'ValueList'
         param5.filters[5].type = 'Range'
 
-        param5.filters[0].list = ['NONE']
+        param5.filters[0].list = []
         param5.filters[1].list = ['Random'] + sorted(COLORS.keys())
         param5.filters[2].list = ['NONE'] + sorted(MARKERS.keys())
         param5.filters[3].list = [0.1, 100.0]
@@ -1519,7 +1577,7 @@ class StereoPlots(_ToolBase):
         param17.filters[4].type = 'ValueList'
         param17.filters[5].type = 'Range'
 
-        param17.filters[0].list = ['NONE']
+        param17.filters[0].list = []
         param17.filters[1].list = sorted(CONTOUR_METHODS.keys())
         param17.filters[2].list = [0.01, 100.0]
         param17.filters[3].list = ['Filled', 'Unfilled']
@@ -1576,7 +1634,7 @@ class StereoPlots(_ToolBase):
         param19.filters[9].type = 'ValueList'
         param19.filters[10].type = 'Range'
 
-        param19.filters[0].list = ['NONE']
+        param19.filters[0].list = []
         param19.filters[1].list = ['M.E.A.D.', 'M.E.A.D. + Fisher', 'K-means',
                                    'Bingham']
         param19.filters[2].list = [1, 100]
@@ -1638,6 +1696,9 @@ class StereoPlots(_ToolBase):
         Dip_Field = parameters[2] # Field
         Method_Field = parameters[3] # Field
         Type_Field = parameters[4] # Field
+        Plot_Data = parameters[5] # ValueTable
+        Contour_Data = parameters[17] # ValueTable
+        Mean_Vector_Data = parameters[19] # ValueTable
 
         # Attempt to fill Azimuth, Dip, Method and Type fields parameters with
         # matching fields from the newly selected Input Feature. Clear them if
@@ -1655,42 +1716,37 @@ class StereoPlots(_ToolBase):
             self.inferFieldParameter(Dip_Field, numf, self.DIP_HINTS)
             self.inferFieldParameter(Method_Field, strf, self.METHOD_HINTS)
             self.inferFieldParameter(Type_Field, strf, self.TYPE_HINTS)
-                                                                        
 
-#---------Updating parameters[5, 17, 19] according to parameters[0, 4]---------#
-                                                                                # parameters[0] = Input Feature
-        if parameters[4].altered:                                               # parameters[4] = Type Field
-                                                                                # parameters[5] = Data to be plotted
-            try:                                                                # parameters[17] = Apply Contour
-                cursor = arcpy.da.SearchCursor(parameters[0].valueAsText,       # parameters[19] = Extract Mean Vectors
-                                               parameters[4].valueAsText)
-                feat = set([str(c[0]) for c in cursor if str(c[0]).strip() != ''])
-                for p in (5, 17, 19):
-                    parameters[p].filters[0].list = sorted(list(feat))
+        # Update data types value lists of Plot Data, Contour Data and Mean
+        # Vector Data ValueTable parameters when Type Field parameter changes.
+        # Clear value lists if Type Field is empty
+        if Type_Field.value is None:
+            Plot_Data.filters[0].list = []
+            Contour_Data.filters[0].list = []
+            Mean_Vector_Data.filters[0].list = []
 
-            except (RuntimeError, TypeError):
-                for p in (5, 17, 19):
-                    parameters[p].filters[0].list = ['NONE']
+        elif self.parameterChanged(Type_Field):
+            with arcpy.da.SearchCursor(
+                Input_Feature.value, Type_Field.valueAsText) as curs:
+                data_types = sorted(set((row[0] for row in curs)))
+                Plot_Data.filters[0].list = data_types
+                Contour_Data.filters[0].list = data_types
+                Mean_Vector_Data.filters[0].list = data_types
 
-        else:
-            for p in (5, 17, 19):
-                parameters[p].filters[0].list = ['NONE']
+        # Attempt to fill empty or invalid entries of Plot Data, Contour Data
+        # and Mean Vector Data ValueTable parameters when they change (entry 
+        # added, modified, moved or removed)    
+        if self.parameterChanged(Plot_Data):
+            defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
+            self.resolveValueTableParameter(Plot_Data, defaults)
 
+        if self.parameterChanged(Contour_Data):
+            defaults = self.VALUETABLE_DEFAULTS['Contour_Data']
+            self.resolveValueTableParameter(Contour_Data, defaults)
 
-        if parameters[5].altered and parameters[5].values != None:
-            default_param5 = ('Random', 'Point (•)', 5.0, 'NONE', 0.5)
-            self.autoFillValueTableParameter(parameters[5], default_param5)
-
-        if parameters[17].altered and parameters[17].values != None:
-            default_param17 = ('Kamb (exponential smoothing)', 2.0, 'Filled',
-                               'Random', 0)
-            self.autoFillValueTableParameter(parameters[17], default_param17)
-
-        if parameters[19].altered and parameters[19].values != None:
-            default_param19 = ('M.E.A.D. + Fisher', 1, 50, 30, 95, 'Random',
-                               'Square (◻)', 5.0, 'NONE', 0.5)
-            self.autoFillValueTableParameter(parameters[19], default_param19)
-
+        if self.parameterChanged(Mean_Vector_Data):
+            defaults = self.VALUETABLE_DEFAULTS['Mean_Vector_Data']
+            self.resolveValueTableParameter(Mean_Vector_Data, defaults)
 
 
 #--------------Updating parameters[7] according to parameters[6]---------------#
