@@ -400,7 +400,7 @@ class _ToolBase(object):
         return not parameter.value and not parameter.hasBeenValidated
     
         
-    def autoFillFieldParameter(
+    def inferFieldParameter(
         self,
         parameter: arcpy.Parameter,
         field_list: Iterable[arcpy.Field],
@@ -824,8 +824,8 @@ class RoseDiagrams(_ToolBase):
         Type_Field = parameters[2] # Field
 
         # Attempt to fill Azimuth and Type fields parameters with matching 
-        # fields from the selected Input Feature. Clear them if Input Feature
-        # parameter is empty
+        # fields from the newly selected Input Feature. Clear them if the Input
+        # Feature parameter has been cleared
         if self.parameterCleared(Input_Feature):
             Azimuth_Field.value, Type_Field.value = None, None
 
@@ -834,8 +834,8 @@ class RoseDiagrams(_ToolBase):
             fields: list[arcpy.Field] = describe['fields']
             numf = [f for f in fields if f.type in NUM_FIELD_TYPES]
             strf = [f for f in fields if f.type == 'String']
-            self.autoFillFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
-            self.autoFillFieldParameter(Type_Field, strf, self.TYPE_HINTS)
+            self.inferFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
+            self.inferFieldParameter(Type_Field, strf, self.TYPE_HINTS)
 
 
 #-------------Updating parameters[3] according to parameters[0, 2]-------------#
@@ -1640,8 +1640,8 @@ class StereoPlots(_ToolBase):
         Type_Field = parameters[4] # Field
 
         # Attempt to fill Azimuth, Dip, Method and Type fields parameters with
-        # matching fields from the selected Input Feature. Clear them if Input
-        # Feature parameter is empty
+        # matching fields from the newly selected Input Feature. Clear them if
+        # the Input Feature parameter has been cleared
         if self.parameterCleared(Input_Feature):
             Azimuth_Field.value, Dip_Field.value = None, None
             Method_Field.value, Type_Field.value = None, None
@@ -1651,10 +1651,10 @@ class StereoPlots(_ToolBase):
             fields: list[arcpy.Field] = describe['fields']
             numf = [f for f in fields if f.type in NUM_FIELD_TYPES]
             strf = [f for f in fields if f.type == 'String']
-            self.autoFillFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
-            self.autoFillFieldParameter(Dip_Field, numf, self.DIP_HINTS)
-            self.autoFillFieldParameter(Method_Field, strf, self.METHOD_HINTS)
-            self.autoFillFieldParameter(Type_Field, strf, self.TYPE_HINTS)
+            self.inferFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
+            self.inferFieldParameter(Dip_Field, numf, self.DIP_HINTS)
+            self.inferFieldParameter(Method_Field, strf, self.METHOD_HINTS)
+            self.inferFieldParameter(Type_Field, strf, self.TYPE_HINTS)
                                                                         
 
 #---------Updating parameters[5, 17, 19] according to parameters[0, 4]---------#
