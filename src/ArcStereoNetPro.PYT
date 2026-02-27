@@ -1071,8 +1071,8 @@ class RoseDiagrams(_ToolBase):
 #----------------------------Plotting of Data----------------------------------#
 
         barLengths = []
-
-        for row in PLOTTING_DATA.values:
+        plot_data = PLOTTING_DATA.values if PLOTTING_DATA.values is not None else []
+        for row in plot_data:
             _type, _color, _meanVect, _nClusts, _azmTol = row
 
             if _color == 'Random':                                              # Select a random color if not specified by the user
@@ -1151,7 +1151,7 @@ class RoseDiagrams(_ToolBase):
 
 #----------------------------Adjusting radius labels---------------------------#
 
-        radii = np.linspace(10**-10, max(barLengths), GRIDSPACE.value)          # in some mpl versions radii must be strictly positive values, therefore 10**-10 instead of 0
+        radii = np.linspace(10**-10, max(barLengths, default=0), GRIDSPACE.value)          # in some mpl versions radii must be strictly positive values, therefore 10**-10 instead of 0
         format_type = '%.2f'
         if radii[1] <= 10**-3 or max(radii) >= 10**6:                           # radii[0] is always 0, then we check radii[1]
             format_type = '%.2e'
