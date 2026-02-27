@@ -118,6 +118,8 @@ LINES = {
 NUM_FIELD_TYPES = ['BigInteger', 'SmallInteger', 'Integer', 'Single', 'Double']
 NUM_FIELD_FILTERS = ['Short', 'Long', 'Single', 'Double']
 
+# Available output image file formats
+IMG_FORMATS = ['png', 'eps', 'pdf', 'pgf', 'ps', 'raw', 'rgba', 'svg', 'svgz']
 
 #- - - - - - - - - - - - U S E F U L  F U N C T I O N S - - - - - - - - - - - -#
 
@@ -659,11 +661,10 @@ class RoseDiagrams(_ToolBase):
         param5 = arcpy.Parameter(displayName = 'Output Image',
                                  name = 'output_img',
                                  datatype = 'DEFile',
-                                 parameterType = 'Required',
+                                 parameterType = 'Optional',
                                  direction = 'Output')
 
-        param5.filter.list = ['png', 'eps', 'pdf', 'pgf', 'ps', 'raw', 'rgba',
-                              'svg', 'svgz']
+        param5.filter.list = IMG_FORMATS
 
 
 
@@ -869,6 +870,8 @@ class RoseDiagrams(_ToolBase):
         Azimuth_Field = parameters[1] # Field
         Type_Field = parameters[2] # Field
         Plot_Data = parameters[3] # ValueTable
+        Save_Image = parameters[4] # GPBoolean
+        Output_Image = parameters[5] # DEFile
         Weighted = parameters[12] # GPBoolean
         Weight_Field = parameters[13] # Field
 
@@ -907,17 +910,9 @@ class RoseDiagrams(_ToolBase):
             defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
             self.resolveValueTableParameter(Plot_Data, defaults)
                                                                                 
-
-#--------------Updating parameters[5] according to parameters[4]---------------#
-                                                                                # parameters[4] = Store Image Output checkbox
-        if parameters[4].altered:                                               # parameters[5] = Output Image
-
-            if parameters[4].value == False:
-                parameters[5].value = temp_filepath('RoseDiagram_temp.png')
-                parameters[5].enabled = False
-
-            else:
-                parameters[5].enabled = True
+        # Enable Output Image parameter when Save Image option is checked
+        if self.parameterChanged(Save_Image):
+            Output_Image.enabled = Save_Image.value
 
         # Enable Weight Field parameter when Weighted option is checked
         Weight_Field.enabled = Weighted.value
@@ -939,9 +934,15 @@ class RoseDiagrams(_ToolBase):
         Azimuth_Field = parameters[1] # Field
         Type_Field = parameters[2] # Field
         Plot_Data = parameters[3] # ValueTable
+        Save_Image = parameters[4] # GPBoolean
+        Output_Image = parameters[5] # DEFile
         Mirrored = parameters[11] # GPBoolean
         Weighted = parameters[12] # GPBoolean
         Weight_Field = parameters[13] # Field
+
+        # Output Image parameter is required if Save Image option is checked                                                            
+        if Save_Image.value and Output_Image.value is None:
+            Output_Image.setIDMessage('ERROR', 530)
 
         # Set warning to Mirrored option if azimuth data of types added to Plot
         # Data ValueTable spreads more than 180 degrees
@@ -999,7 +1000,7 @@ class RoseDiagrams(_ToolBase):
 
 #- - - - - - - - - - - - - T O O L  E X E C U T I O N - - - - - - - - - - - - -#
 
-    def execute(self, parameters, messages):
+    def execute(self, parameters: list[arcpy.Parameter], messages):
 
         """The source code of the tool."""
         
@@ -1043,6 +1044,12 @@ class RoseDiagrams(_ToolBase):
 
 
 #-------------------------Pre-Elaboration of Data------------------------------#
+
+        # Determine image output filepath
+        if STORE_IMG.value:
+            image_outpath = OUTPUT_IMG.valueAsText
+        else:
+            image_outpath = temp_filepath('RoseDiagram_temp.png')
 
 #>>> Initialize projected data types set & statistics dictionaries for log file
 
@@ -1205,7 +1212,7 @@ class RoseDiagrams(_ToolBase):
 #-------------------------------Write Log File---------------------------------#
 
         if WRITE_LOG.value:
-            logPath = path.splitext(OUTPUT_IMG.valueAsText)[0] + '_LOG.txt'
+            logPath = path.splitext(image_outpath)[0] + '_LOG.txt'
 
             with io.open(logPath, 'w') as LOG:
                 LOG.write(title.upper() + '\n\n')
@@ -1236,17 +1243,15 @@ class RoseDiagrams(_ToolBase):
 
 #----------------------Save the figure and End the tool------------------------#
 
-        fig.savefig(OUTPUT_IMG.valueAsText, dpi='figure', bbox_inches='tight')
+        fig.savefig(image_outpath, dpi='figure', bbox_inches='tight')
         plt.close('all')
 
         if STORE_IMG.value == False:
-            startfile(OUTPUT_IMG.valueAsText)
+            startfile(image_outpath)
             if WRITE_LOG.value:
                 startfile(logPath)
 
         elif OUTPUT_IMG.valueAsText.endswith('.png'):
-            arcpy.BuildPyramids_management(OUTPUT_IMG.valueAsText)
-
             xypath = path.splitext(OUTPUT_IMG.valueAsText)[0] + '_xy.txt'       # Saving centroid coordinates
             clon, clat = centroid
             descr = arcpy.Describe(IN_FEATURE.valueAsText)
@@ -1414,11 +1419,10 @@ class StereoPlots(_ToolBase):
         param7 = arcpy.Parameter(displayName = 'Output Image',
                                  name = 'output_img',
                                  datatype = 'DEFile',
-                                 parameterType = 'Required',
+                                 parameterType = 'Optional',
                                  direction = 'Output')
 
-        param7.filter.list = ['png', 'eps', 'pdf', 'pgf', 'ps',
-                              'raw', 'rgba', 'svg', 'svgz']
+        param7.filter.list = IMG_FORMATS
 
 
 
@@ -1696,6 +1700,8 @@ class StereoPlots(_ToolBase):
         Method_Field = parameters[3] # Field
         Type_Field = parameters[4] # Field
         Plot_Data = parameters[5] # ValueTable
+        Save_Image = parameters[6] # GPBoolean
+        Output_Image = parameters[7] # DEFile
         Contour_Data = parameters[17] # ValueTable
         Mean_Vector_Data = parameters[19] # ValueTable
 
@@ -1749,21 +1755,9 @@ class StereoPlots(_ToolBase):
             defaults = self.VALUETABLE_DEFAULTS['Mean_Vector_Data']
             self.resolveValueTableParameter(Mean_Vector_Data, defaults)
 
-
-#--------------Updating parameters[7] according to parameters[6]---------------#
-                                                                                # parameters[6] = Store Image Output checkbox
-        if parameters[6].altered:                                               # parameters[7] = Output Image
-
-            if parameters[6].value == False:
-                parameters[7].value = temp_filepath('Stereoplot_temp.png')
-                parameters[7].enabled = False
-
-            else:
-                parameters[7].enabled = True
-
-        else:
-            pass
-
+        # Enable Output Image parameter when Save Image option is checked
+        if self.parameterChanged(Save_Image):
+            Output_Image.enabled = Save_Image.value
 
 
 #--------------Updating parameters[18] according to parameters[17]-------------#
@@ -1794,10 +1788,18 @@ class StereoPlots(_ToolBase):
 
 #- - - - - - - - - - - - - - - UPDATE  MESSAGES - - - - - - - - - - - - - - - -#
 
-    def updateMessages(self, parameters):
+    def updateMessages(self, parameters: list[arcpy.Parameter]):
 
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation."""
+
+        # Parameters accessed by this method
+        Save_Image = parameters[6] # GPBoolean
+        Output_Image = parameters[7] # DEFile
+
+        # Output Image parameter is required if Save Image option is checked                                                            
+        if Save_Image.value and Output_Image.value is None:
+            Output_Image.setIDMessage('ERROR', 530)
 
 #---Updating parameters[9] warning messages according to parameters[17, 19]---#
                                                                                 # parameters[9] = Net Type
@@ -1889,6 +1891,12 @@ class StereoPlots(_ToolBase):
 
 
 #-------------------------Pre-Elaboration of Data------------------------------#
+
+        # Determine image output filepath
+        if STORE_IMG.value:
+            image_outpath = OUTPUT_IMG.valueAsText
+        else:
+            image_outpath = temp_filepath('Stereoplot_temp.png')
 
 #>>> Transforming DD data in RHR data <<<
 
@@ -2281,7 +2289,7 @@ class StereoPlots(_ToolBase):
 #-------------------------------Write Log File---------------------------------#
 
         if WRITE_LOG.value:
-            logPath = path.splitext(OUTPUT_IMG.valueAsText)[0] + '_LOG.txt'
+            logPath = path.splitext(image_outpath)[0] + '_LOG.txt'
 
             with io.open(logPath, 'w') as LOG:
                 LOG.write(title.upper() + '\n\n')
@@ -2340,18 +2348,16 @@ class StereoPlots(_ToolBase):
 
 #----------------------Save the figure and End the tool------------------------#
 
-        fig.savefig(OUTPUT_IMG.valueAsText, dpi='figure', bbox_inches='tight')
+        fig.savefig(image_outpath, dpi='figure', bbox_inches='tight')
         plt.close('all')
 
         if STORE_IMG.value == False:
-            startfile(OUTPUT_IMG.valueAsText)
+            startfile(image_outpath)
             if WRITE_LOG.value:
                 startfile(logPath)
 
-        elif OUTPUT_IMG.valueAsText.endswith('.png'):
-            arcpy.BuildPyramids_management(OUTPUT_IMG.valueAsText)
-
-            xypath = path.splitext(OUTPUT_IMG.valueAsText)[0] + '_xy.txt'       # Saving centroid coordinates
+        elif image_outpath.endswith('.png'):
+            xypath = path.splitext(image_outpath)[0] + '_xy.txt'       # Saving centroid coordinates
             clon, clat = centroid
             descr = arcpy.Describe(IN_FEATURE.valueAsText)
             with io.open(xypath, 'w') as xyfile:
