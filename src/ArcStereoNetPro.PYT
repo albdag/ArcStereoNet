@@ -419,20 +419,6 @@ class _ToolBase(object):
         """
         return parameter.altered and not parameter.hasBeenValidated
     
-
-    def parameterCleared(self, parameter: arcpy.Parameter) -> bool:
-
-        """Check if a parameter has been cleared and not yet validated.
-
-        Args:
-            parameter (arcpy.Parameter): Parameter to check.
-
-        Returns:
-            bool: Whether the parameter was cleared.
-        """
-                
-        return not parameter.value and not parameter.hasBeenValidated
-    
         
     def inferFieldParameter(
         self,
@@ -1707,10 +1693,12 @@ class StereoPlots(_ToolBase):
 
         # Attempt to fill Azimuth, Dip, Method and Type fields parameters with
         # matching fields from the newly selected Input Feature. Clear them if
-        # the Input Feature parameter has been cleared
-        if self.parameterCleared(Input_Feature):
-            Azimuth_Field.value, Dip_Field.value = None, None
-            Method_Field.value, Type_Field.value = None, None
+        # the Input Feature parameter is empty
+        if Input_Feature.value is None:
+            Azimuth_Field.value = None
+            Dip_Field.value = None
+            Method_Field.value = None
+            Type_Field.value = None
 
         elif self.parameterChanged(Input_Feature):
             describe = arcpy.da.Describe(Input_Feature.value)
