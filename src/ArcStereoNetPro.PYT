@@ -428,14 +428,19 @@ class _ToolBase(object):
     ) -> None:
         
         """Auto fill an empty Field 'parameter' with a field from 'field_list'
-        that matches any of the 'field_hints'. This method is designed to auto
-        fill only a Field-type parameter.
+        that matches any of the 'field_hints'.
 
         Args:
             parameter (arcpy.Parameter): Field parameter to be filled.
             field_list (Iterable[arcpy.Field]): Fields available for filling.
             field_hints (Iterable[str]): Field hints to be matched for filling.
+
+        Raises:
+            TypeError: Datatype of 'parameter' must be "Field".
         """
+        # Enforce requirement of a Field parameter
+        if (dt := parameter.datatype) != 'Field':
+            raise TypeError(f"Parameter must be of type Field, not {dt}")
 
         # Extract a dictionary of names and aliases from available fields
         fields_dict = {f.name: f.aliasName for f in field_list}
