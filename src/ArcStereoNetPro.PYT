@@ -915,7 +915,8 @@ class RoseDiagrams(_ToolBase):
             Output_Image.enabled = Save_Image.value
 
         # Enable Weight Field parameter when Weighted option is checked
-        Weight_Field.enabled = Weighted.value
+        if self.parameterChanged(Weighted):
+            Weight_Field.enabled = Weighted.value
 
         return
 
