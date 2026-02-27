@@ -949,12 +949,8 @@ class RoseDiagrams(_ToolBase):
         # Data ValueTable spreads more than 180 degrees
         if (
             Mirrored.value and
-            all(p.value is not None for p in parameters[0:4]) and (
-                self.parameterChanged(Azimuth_Field) or                                     
-                self.parameterChanged(Plot_Data) or                                      
-                self.parameterChanged(Mirrored)
-            )
-        ):                                      
+            all(p.value is not None for p in parameters[0:4])
+        ):                             
             spreads: dict[str, list[int | float]] = {}
             fields = (Azimuth_Field.valueAsText, Type_Field.valueAsText)
             plotted = [v[0] for v in Plot_Data.values]
