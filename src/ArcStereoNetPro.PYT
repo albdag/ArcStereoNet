@@ -1562,7 +1562,7 @@ class StereoPlots(_ToolBase):
 
         param17.columns = [['GPString', 'Data Type'],
                            ['GPString', 'Method'],
-                           ['GPDouble', u'Standard deviation (\u03C3)'],
+                           ['GPDouble', 'Standard deviation (σ)'],
                            ['GPString', 'Style'],
                            ['GPString', 'Color'],
                            ['GPLong', 'Transparency (%)']]
@@ -1578,7 +1578,7 @@ class StereoPlots(_ToolBase):
 
         param17.filters[0].list = []
         param17.filters[1].list = sorted(CONTOUR_METHODS.keys())
-        param17.filters[2].list = [0.01, 100.0]
+        param17.filters[2].list = [0.0, 100.0]
         param17.filters[3].list = ['Filled', 'Unfilled']
         param17.filters[4].list = ['Random'] + list(CONTOUR_COLORMAPS.keys())
         param17.filters[5].list = [0, 100]
