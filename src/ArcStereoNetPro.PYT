@@ -366,6 +366,10 @@ class _ToolBase(object):
         'type',
         'types'
     )
+    WEIGHT_HINTS = (
+        'weight',
+        'weights'
+    )
 
     def __init__(self) -> None:
 
@@ -773,7 +777,7 @@ class RoseDiagrams(_ToolBase):
         param13 = arcpy.Parameter(displayName = 'Weight Field',
                                   name = 'wgt_field',
                                   datatype = 'Field',
-                                  parameterType = 'Required',
+                                  parameterType = 'Optional',
                                   direction = 'Input',
                                   enabled = False)
 
@@ -874,12 +878,16 @@ class RoseDiagrams(_ToolBase):
         Azimuth_Field = parameters[1] # Field
         Type_Field = parameters[2] # Field
         Plot_Data = parameters[3] # ValueTable
+        Weighted = parameters[12] # GPBoolean
+        Weight_Field = parameters[13] # Field
 
-        # Attempt to fill Azimuth and Type fields parameters with matching 
-        # fields from the newly selected Input Feature. Clear them if the Input
-        # Feature parameter has been cleared
-        if self.parameterCleared(Input_Feature):
-            Azimuth_Field.value, Type_Field.value = None, None
+        # Attempt to fill Azimuth, Type and Weight fields parameters with 
+        # matching fields from the newly selected Input Feature. Clear them if
+        # the Input Feature parameter is empty
+        if Input_Feature.value is None:
+            Azimuth_Field.value = None
+            Type_Field.value = None
+            Weight_Field.value = None
 
         elif self.parameterChanged(Input_Feature):
             describe = arcpy.da.Describe(Input_Feature.value)
@@ -888,6 +896,8 @@ class RoseDiagrams(_ToolBase):
             strf = [f for f in fields if f.type == 'String']
             self.inferFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
             self.inferFieldParameter(Type_Field, strf, self.TYPE_HINTS)
+            self.inferFieldParameter(Weight_Field, numf, self.WEIGHT_HINTS)
+
         # Update data types value list of Plot Data ValueTable parameter when
         # Type Field parameter changes. Clear value list if Type Field is empty
         if Type_Field.value is None:
@@ -918,20 +928,8 @@ class RoseDiagrams(_ToolBase):
             else:
                 parameters[5].enabled = True
 
-
-
-#------------Updating parameters[13] according to parameters[1, 12]------------#
-                                                                                # parameters[1] = Azimuth Value
-        if parameters[1].altered or self.parameterChanged(parameters[12]):               # parameters[12] = Weighted Plot checkbox
-                                                                                # parameters[13] = Weight Field
-            if parameters[12].value:
-                parameters[13].enabled = True
-
-            else:
-                parameters[13].value = parameters[1].valueAsText
-                parameters[13].enabled = False
-
-
+        # Enable Weight Field parameter when Weighted option is checked
+        Weight_Field.enabled = Weighted.value
 
         return
 
@@ -979,8 +977,15 @@ class RoseDiagrams(_ToolBase):
                 msg = f'Azimuth data of {warns} spread more than 180 degrees.'
                 Mirrored.setWarningMessage(msg)
 
-        # Set warning to Weight Field if it contains negative values                                                            
-        if Weighted.value:                                                                                               
+        # Set Weight Field parameter as Required if Weighted option is checked                                                            
+        if Weighted.value and Weight_Field.value is None:
+            Weight_Field.setIDMessage('ERROR', 530) # force required parameter
+        
+        # Set warning if Weight Field parameter contains negative values 
+        if (
+            self.parameterChanged(Weight_Field) and
+            Input_Feature.value is not None
+        ):
             with arcpy.da.SearchCursor(
                 Input_Feature.value, Weight_Field.valueAsText) as curs:
                 if min(curs)[0] < 0:
