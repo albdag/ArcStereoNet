@@ -943,13 +943,16 @@ class RoseDiagrams(_ToolBase):
         Weighted = parameters[12] # GPBoolean
         Weight_Field = parameters[13] # Field
 
-        # Set warning to Mirrored Behaviour option if azimuth data spreads more
-        # than 180 degrees for data types added to Data to Plot value table
-        if Mirrored.value and ((
-            self.parameterChanged(Azimuth_Field) or                                     
-            self.parameterChanged(Plot_Data) or                                      
-            self.parameterChanged(Mirrored)
-        )):                                      
+        # Set warning to Mirrored option if azimuth data of types added to Plot
+        # Data ValueTable spreads more than 180 degrees
+        if (
+            Mirrored.value and
+            all(p.value is not None for p in parameters[0:4]) and (
+                self.parameterChanged(Azimuth_Field) or                                     
+                self.parameterChanged(Plot_Data) or                                      
+                self.parameterChanged(Mirrored)
+            )
+        ):                                      
             spreads: dict[str, list[int | float]] = {}
             fields = (Azimuth_Field.valueAsText, Type_Field.valueAsText)
             plotted = [v[0] for v in Plot_Data.values]
