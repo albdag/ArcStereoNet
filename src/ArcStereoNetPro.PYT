@@ -1785,37 +1785,40 @@ class StereoPlots(_ToolBase):
 
 #- - - - - - - - - - - - - - - UPDATE  MESSAGES - - - - - - - - - - - - - - - -#
 
-    def updateMessages(self, parameters: list[arcpy.Parameter]):
+    def updateMessages(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the messages created by internal validation for each tool
-        parameter. This method is called after internal validation."""
+        parameter. This method is called after internal validation.
+        
+        Args:
+            parameters (list[arcpy.Parameter]): Tool's parameters.
+        """
 
         # Parameters accessed by this method
         Save_Image = parameters[6] # GPBoolean
         Output_Image = parameters[7] # DEFile
+        Net_Type = parameters[9] # GPString
+        Contour_Data = parameters[17] # ValueTable
+        Mean_Vector_Data = parameters[19] # ValueTable
 
         # Output Image parameter is required if Save Image option is checked                                                            
         if Save_Image.value and Output_Image.value is None:
             Output_Image.setIDMessage('ERROR', 530)
 
-#---Updating parameters[9] warning messages according to parameters[17, 19]---#
-                                                                                # parameters[9] = Net Type
-        if ((parameters[17].altered and parameters[17].values != None) or       # parameters[17] = Apply Contour
-            (parameters[19].altered and parameters[19].values != None)):        # parameters[19] = Extract mean vectors
+        # Set warning to Net Type parameter when "Wulff" net is selected with
+        # active statistical analysis (Contour or Mean Vector Extraction)
+        if (
+            Net_Type.valueAsText == 'Wulff (Equal Angle)' and
+            any(p.value is not None for p in (Contour_Data, Mean_Vector_Data))
+        ):
+            msg = 'Schmidt net type is recommended for better statistics.'
+            Net_Type.setWarningMessage(msg)
 
-            if parameters[9].valueAsText == 'Wulff (Equal Angle)':
-                warn9 = 'For better statistical results a Schmidt net type is recommended.'
-                parameters[9].setWarningMessage(warn9)
-
-
-
-#-----Updating parameters[17] warning messages according to parameters[17]-----#
-                                                                                # parameters[17] = Apply Contour
-        if parameters[17].altered and parameters[17].values != None:
-
-            if len(parameters[17].values) > 1:
-                warn17 = 'Apply contour on more than 1 feature may cause issues.'
-                parameters[17].setWarningMessage(warn17)
+        # Set warning to Contour Data ValueTable when more than one feature is
+        # selected
+        if (con_data := Contour_Data.values) is not None and len(con_data) > 1:
+            msg = 'Applying contour on multiple features may cause issues.'
+            Contour_Data.setWarningMessage(msg)
 
         return
 
