@@ -2265,81 +2265,73 @@ class GraphToHyperlink(_ToolBase):
         self.description = 'Use this tool to link plots with corresponding data.'
 
 
+    def getParameterInfo(self) -> list[arcpy.Parameter]:
 
-#- - - - - - - - - - - - - - - - - PARAMETERS - - - - - - - - - - - - - - - - -#
+        """Define parameter definitions.
 
-    def getParameterInfo(self):
+        Returns:
+            list[arcpy.Parameter]: List of tool's parameters.
+        """
 
-        """Define parameter definitions"""
+        # INPUT PLOTS (param0) ------------------------------------------------
+        param0 = arcpy.Parameter(
+            name='input_plots',
+            displayName='Input Plots',
+            direction='Input',
+            datatype='DERasterDataset',
+            parameterType='Required',
+            multiValue=True
+        )
 
+        # OUTPUT FEATURE (param1) ---------------------------------------------
+        param1 = arcpy.Parameter(
+            name='output_feature',
+            displayName='Output Feature',
+            direction='Output',
+            datatype='DEFeatureClass',
+            parameterType='Required'
+        )
 
-
-#-------------------------Input plot images (param0)---------------------------#
-
-        param0 = arcpy.Parameter(displayName = 'Input Plot Images (Raster)',
-                                 name = 'in_plots',
-                                 datatype = 'DERasterDataset',
-                                 parameterType = 'Required',
-                                 direction = 'Input',
-                                 multiValue = True)
-
-
-
-#------------------------Output feature class (param1)-------------------------#
-
-        param1 = arcpy.Parameter(displayName = 'Output Feature Class',
-                                 name = 'out_fc',
-                                 datatype = 'DEFeatureClass',
-                                 parameterType = 'Required',
-                                 direction = 'Output')
-
-
-
-#-------------------------------Parameters LIST--------------------------------#
-
+        # Parameters list
         parameters = [param0, param1]
-
         return parameters
 
 
-
-#- - - - - - - - - - - O P T I O N A L  F U N C T I O N S - - - - - - - - - - -#
-
-#- - - - - - - - - - - - - - - UPDATE  PARAMETERS - - - - - - - - - - - - - - -#
-
-    def updateParameters(self, parameters):
+    def updateParameters(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the values and properties of parameters before internal
-        validation is performed.  This method is called whenever a parameter
-        has been changed."""
+        validation is performed. This method is called whenever a parameter
+        has been changed.
+        
+        Args:
+            parameters (list[arcpy.Parameter]): Tool's parameters.
+        """
 
         return
+    
 
-
-
-#--------------------------------Other Functions-------------------------------#
-
-    def updateMessages(self, parameters):
+    def updateMessages(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the messages created by internal validation for each tool
-        parameter.  This method is called after internal validation."""
+        parameter. This method is called after internal validation.
+        
+        Args:
+            parameters (list[arcpy.Parameter]): Tool's parameters.
+        """
 
+        # Parameters accessed by this method
+        Input_Plots = parameters[0] # Raster (multivalue)
 
-
-#-------Updating parameters[0] error messages according to parameters[0]-------#
-                                                                                # parameters[0] = Input plot images
-        if parameters[0].altered and parameters[0].value != None:
-            for img_path in parameters[0].values:
+        # Send error message if the sidecar xy file is missing from any plot.
+        if self.parameterChanged(Input_Plots) and Input_Plots.value is not None:
+            for img_path in Input_Plots.values:
                 xy_path = path.splitext(str(img_path))[0] + '_xy.txt'
                 if not path.exists(xy_path):
-                    err = u'Unable to find coordinates file for {}.'.format(img_path)
+                    err = f'Unable to find coordinates file for {img_path}.'
                     parameters[0].setErrorMessage(err)
                     break
 
-
-
         return
-
 
 
     def isLicensed(self):
