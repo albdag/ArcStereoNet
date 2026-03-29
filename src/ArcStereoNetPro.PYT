@@ -569,291 +569,240 @@ class RoseDiagrams(_ToolBase):
         return array.max() - array.min() > 180
 
 
-#- - - - - - - - - - - - - - - - - PARAMETERS - - - - - - - - - - - - - - - - -#
+    def getParameterInfo(self) -> list[arcpy.Parameter]:
 
-    def getParameterInfo(self):
+        """Define parameter definitions.
 
-        """Define parameter definitions"""
+        Returns:
+            list[arcpy.Parameter]: List of tool's parameters.
+        """
 
+        # INPUT FEATURE (param0) ----------------------------------------------
+        param0 = arcpy.Parameter(
+            name='input_feature',
+            displayName='Input Feature',
+            direction='Input',
+            datatype='GPFeatureLayer',
+            parameterType='Required'
+        )
+        param0.filter.list = ['Point', 'Polyline', 'Polygon']                  # type: ignore[reportOptionalMemberAccess]
 
+        # AZIMUTH FIELD (param1) ----------------------------------------------
+        param1 = arcpy.Parameter(
+            name='azimuth_field',
+            displayName='Azimuth Field',
+            direction='Input',
+            datatype='Field',
+            parameterType='Required'
+        )
+        param1.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
+        param1.filter.list = NUM_FIELD_FILTERS                                 # type: ignore[reportOptionalMemberAccess]
 
-#---------------------------Input feature (param0)-----------------------------#
+        # TYPE FIELD (param2) -------------------------------------------------
+        param2 = arcpy.Parameter(
+            name='type_field',
+            displayName='Type Field',
+            direction='Input',
+            datatype='Field',
+            parameterType='Required'
+        )
+        param2.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
+        param2.filter.list = ['Text']                                          # type: ignore[reportOptionalMemberAccess]
 
-        param0 = arcpy.Parameter(displayName = 'Input Feature',
-                                 name = 'in_feature',
-                                 datatype = 'GPFeatureLayer',
-                                 parameterType = 'Required',
-                                 direction = 'Input')
-
-        param0.filter.list = ['Point', 'Polyline', 'Polygon']
-
-
-
-#---------------------------Azimuth Field (param1)-----------------------------#
-
-        param1 = arcpy.Parameter(displayName = 'Azimuth Field',
-                                 name = 'azm_field',
-                                 datatype = 'Field',
-                                 parameterType = 'Required',
-                                 direction = 'Input')
-
-        param1.filter.list = NUM_FIELD_FILTERS
-        param1.parameterDependencies = [param0.name]
-
-
-
-#-----------------------------Type Field (param2)------------------------------#
-
-        param2 = arcpy.Parameter(displayName = 'Type Field',
-                                 name = 'type_field',
-                                 datatype = 'Field',
-                                 parameterType = 'Required',
-                                 direction = 'Input')
-
-        param2.filter.list = ['Text']
-        param2.parameterDependencies = [param0.name]
-
-
-
-#------------------------Data to be plotted (param3)---------------------------#
-
-        param3 = arcpy.Parameter(displayName = 'Data to be plotted',
-                                 name = 'plotting_data',
-                                 datatype = 'GPValueTable',
-                                 parameterType = 'Optional',
-                                 direction = 'Input',
-                                 multiValue = True)
-
-        param3.columns = [['GPString', 'Data Type'],
-                          ['GPString', 'Color'],
-                          ['GPString', 'Show M.E.A.D. Mean Vector(s)'],
-                          ['GPLong', 'Number of Clusters'],
-                          ['GPLong', 'M.E.A.D. Azimuth tolerance(%)']]
-
+        # PLOT DATA (param3) --------------------------------------------------
+        param3 = arcpy.Parameter(
+            name='plot_data',
+            displayName='Plot Data',
+            direction='Input',
+            datatype='GPValueTable',
+            parameterType='Optional',
+            multiValue=True
+        )
+        param3.columns = [
+            ['GPString', 'Data Type'],
+            ['GPString', 'Color'],
+            ['GPString', 'Show MEAD Mean Vector(s)'],
+            ['GPLong', 'Number of Clusters'],
+            ['GPLong', 'MEAD Azimuth tolerance(%)']
+        ]
         param3.filters[0].type = 'ValueList'
         param3.filters[1].type = 'ValueList'
         param3.filters[2].type = 'ValueList'
         param3.filters[3].type = 'Range'
         param3.filters[4].type = 'Range'
-
         param3.filters[0].list = []
         param3.filters[1].list = ['Random'] + sorted(COLORS.keys())
         param3.filters[2].list = ['NO', 'YES']
         param3.filters[3].list = [1, 100]
         param3.filters[4].list = [0, 100]
 
-
-
-#---------------------Store Image Output checkbox (param4)---------------------#
-
-        param4 = arcpy.Parameter(displayName = 'Store Image Output',
-			                     name = 'store_img',
-			                     datatype = 'GPBoolean',
-			                     parameterType = 'Optional',
-			                     direction = 'Input')
-
+        # SAVE IMAGE (param4) -------------------------------------------------
+        param4 = arcpy.Parameter(
+            name='save_image',
+            displayName='Save Image',
+            direction='Input',
+			datatype='GPBoolean',
+			parameterType='Optional',
+		)
         param4.value = True
 
+        # IMAGE OUTPUT (param5) -----------------------------------------------
+        param5 = arcpy.Parameter(
+            name='image_output',
+            displayName='Image Output',
+            direction='Output',          
+            datatype='DEFile',
+            parameterType='Optional',
+        )
+        param5.filter.list = IMG_FORMATS                                       # type: ignore[reportOptionalMemberAccess]
 
-
-#-----------------------------Output image (param5)----------------------------#
-
-        param5 = arcpy.Parameter(displayName = 'Output Image',
-                                 name = 'output_img',
-                                 datatype = 'DEFile',
-                                 parameterType = 'Optional',
-                                 direction = 'Output')
-
-        param5.filter.list = IMG_FORMATS
-
-
-
-#--------------------------------Image DPI (param6)----------------------------#
-
-        param6 = arcpy.Parameter(displayName = 'Image Resolution (DPI)',
-                                 name = 'img_DPI',
-                                 datatype = 'GPLong',
-                                 parameterType = 'Optional',
-                                 direction = 'Input')
-
+        # IMAGE DPI (param6) --------------------------------------------------
+        param6 = arcpy.Parameter(
+            name='image_dpi',
+            displayName='Image Resolution (DPI)',
+            direction='Input',
+            datatype='GPLong',
+            parameterType='Optional',
+        )
+        param6.controlCLSID = '{C8C46E43-3D27-4485-9B38-A49F3AC588D9}'
+        param6.filter.type = 'Range'                                           # type: ignore[reportOptionalMemberAccess]
+        param6.filter.list = [0, 600]                                          # type: ignore[reportOptionalMemberAccess]
         param6.value = 200
-        param6.filter.type = 'Range'
-        param6.filter.list = [0, 600]
 
+        # PLOT TITLE (param7) -------------------------------------------------
+        param7 = arcpy.Parameter(
+            name='plot_title',
+            displayName='Plot Title',
+            direction='Input',
+            datatype='GPString',
+            parameterType='Optional',
+            category='Plot Customization'
+        )
 
-
-#----------------------------Title Label (param7)------------------------------#
-
-        param7 = arcpy.Parameter(displayName = 'Title Label',
-                                 name = 'title_label',
-                                 datatype = 'GPString',
-                                 parameterType = 'Optional',
-                                 direction = 'Input')
-
-        param7.category = 'Plot Customisation'
-
-
-
-#-------------------------Show Grid checkbox (param8)--------------------------#
-
-        param8 = arcpy.Parameter(displayName = 'Show Grid',
-			         name = 'show_grid',
-			         datatype = 'GPBoolean',
-			         parameterType = 'Optional',
-			         direction = 'Input')
-
-        param8.category = 'Plot Customisation'
-
+        # SHOW GRID (param8)  -------------------------------------------------
+        param8 = arcpy.Parameter(
+            name='show_grid',
+            displayName='Grid',
+            direction='Input',
+			datatype='GPBoolean',
+			parameterType='Optional',
+            category='Plot Customization'
+		)
         param8.value = True
 
-
-
-#------------------------Show Legend checkbox (param9)-------------------------#
-
-        param9 = arcpy.Parameter(displayName = 'Show Legend',
-			         name = 'show_legend',
-                                 datatype = 'GPBoolean',
-			         parameterType = 'Optional',
-			         direction = 'Input')
-
-        param9.category = 'Plot Customisation'
-
+        # SHOW LEGEND (param9) ------------------------------------------------
+        param9 = arcpy.Parameter(
+            name='show_legend',
+            displayName='Legend',
+            direction='Input',
+            datatype='GPBoolean',
+			parameterType='Optional',
+            category='Plot Customization'
+		)
         param9.value = True
 
-
-
-#----------------Show Samples Number label checkbox (param10)------------------#
-
-        param10 = arcpy.Parameter(displayName = 'Show Samples Number label',
-			          name = 'show_nSamples',
-		                  datatype = 'GPBoolean',
-			          parameterType = 'Optional',
-			          direction = 'Input')
-
-        param10.category = 'Plot Customisation'
-
+        # SHOW NUMBER OF SAMPLES (param10) ------------------------------------
+        param10 = arcpy.Parameter(
+            name='show_num_samples',
+            displayName='Number of Samples',
+            direction='Input',
+		    datatype = 'GPBoolean',
+			parameterType = 'Optional',
+            category='Plot Customization'
+		)
         param10.value = True
 
-
-
-#-------------------Mirrored behaviour checkbox (param11)----------------------#
-
-        param11 = arcpy.Parameter(displayName = 'Mirrored behaviour',
-			          name = 'mirrored',
-			          datatype = 'GPBoolean',
-			          parameterType = 'Optional',
-			          direction = 'Input')
-
-        param11.category = 'Plotting Options'
-
+        # MIRRORED PLOT (param11) ---------------------------------------------
+        param11 = arcpy.Parameter(
+            name='mirrored',
+            displayName='Mirrored',
+            direction='Input',
+			datatype='GPBoolean',
+			parameterType='Optional',
+            category='Advanced Options'
+		)
         param11.value = False
 
-
-
-#----------------------Weighted Plot checkbox (param12)------------------------#
-
-        param12 = arcpy.Parameter(displayName = 'Weighted Rose Diagram',
-			          name = 'weighted',
-			          datatype = 'GPBoolean',
-			          parameterType = 'Optional',
-			          direction = 'Input')
-
-        param12.category = 'Plotting Options'
-
+        # WEIGHTED PLOT (param12) ---------------------------------------------
+        param12 = arcpy.Parameter(
+            name='weighted',
+            displayName='Weighted',
+            direction='Input',
+			datatype='GPBoolean',
+			parameterType='Optional',
+            category='Advanced Options'
+		)
         param12.value = False
 
+        # WEIGHT FIELD (param13) ----------------------------------------------
+        param13 = arcpy.Parameter(
+            name='weight_field',
+            displayName='Weight Field',
+            direction='Input',
+            datatype='Field',
+            parameterType='Optional', 
+            enabled=False,
+            category='Advanced Options'
+        )
+        param13.parameterDependencies = [param0.name]                          # type: ignore[reportAttributeAccessIssue]
+        param13.filter.list = NUM_FIELD_FILTERS                                # type: ignore[reportOptionalMemberAccess]
 
-
-#---------------------------Weight Field (param13)-----------------------------#
-
-        param13 = arcpy.Parameter(displayName = 'Weight Field',
-                                  name = 'wgt_field',
-                                  datatype = 'Field',
-                                  parameterType = 'Optional',
-                                  direction = 'Input',
-                                  enabled = False)
-
-        param13.category = 'Plotting Options'
-
-        param13.filter.list = NUM_FIELD_FILTERS
-        param13.parameterDependencies = [param0.name]
-
-
-
-#---------------------Write Log File checkbox (param14)------------------------#
-
-        param14 = arcpy.Parameter(displayName = 'Write Log File',
-			          name = 'write_log',
-			          datatype = 'GPBoolean',
-			          parameterType = 'Optional',
-			          direction = 'Input')
-
-        param14.category = 'Plotting Options'
-
+        # WRITE LOG (param14) -------------------------------------------------
+        param14 = arcpy.Parameter(
+            name='write_log',
+            displayName='Log File',
+            direction='Input',
+		    datatype='GPBoolean',
+			parameterType='Optional',
+            category='Advanced Options'
+		)
         param14.value = False
 
-
-
-#--------------------------Tick Marks Spacing (param15)------------------------#
-
-        param15 = arcpy.Parameter(displayName = 'Tick Marks Spacing (degrees)',
-                                  name = 'tickspacing',
-                                  datatype = 'GPLong',
-                                  parameterType = 'Optional',
-                                  direction = 'Input')
-
-        param15.category = 'Plot Customisation'
-
+        # TICK SPACING (param15) ----------------------------------------------
+        param15 = arcpy.Parameter(
+            name='tick_spacing',
+            displayName='Tick Spacing',
+            direction='Input', 
+            datatype='GPLong',
+            parameterType='Optional',
+            category='Plot Customization'
+        )
+        param15.filter.type = 'Range'                                          # type: ignore[reportOptionalMemberAccess]
+        param15.filter.list = [1, 360]                                         # type: ignore[reportOptionalMemberAccess]
         param15.value = 10
-        param15.filter.type = 'Range'
-        param15.filter.list = [1, 360]
 
-
-
-#------------------Radius Labels Angular Position (param16)--------------------#
-
-        param16 = arcpy.Parameter(displayName = 'Radius labels angular position (degrees)',
-                                  name = 'rGrids_angle',
-                                  datatype = 'GPLong',
-                                  parameterType = 'Optional',
-                                  direction = 'Input')
-
-        param16.category = 'Plot Customisation'
-
+        # RADIUS LABELS ANGLE (param16) ---------------------------------------
+        param16 = arcpy.Parameter(
+            name='radius_labels_angle',
+            displayName='Labels Angle',
+            direction='Input',
+            datatype='GPLong',
+            parameterType='Optional',
+            category='Plot Customization'
+        )
+        param16.filter.type = 'Range'                                          # type: ignore[reportOptionalMemberAccess]
+        param16.filter.list = [0, 360]                                         # type: ignore[reportOptionalMemberAccess]
         param16.value = 0
-        param16.filter.type = 'Range'
-        param16.filter.list = [0, 360]
 
-
-
-#-----------------------------Grid Space (param17)-----------------------------#
-
-        param17 = arcpy.Parameter(displayName = 'Set Grid Space',
-                                  name = 'gridSpace',
-                                  datatype = 'GPLong',
-                                  parameterType = 'Optional',
-                                  direction = 'Input')
-
-        param17.category = 'Plot Customisation'
-
+        # GRID SPACE (param17) ------------------------------------------------
+        param17 = arcpy.Parameter(
+            name='grid_space',
+            displayName='Set Grid Space',
+            direction='Input',
+            datatype='GPLong',
+            parameterType='Optional',
+            category='Plot Customization'
+        )
         param17.value = 8
 
-
-
-#-------------------------------Parameters LIST--------------------------------#
-
-        parameters = [param0, param1, param2, param3, param4, param5, param6,
-                      param7, param8, param9, param10, param11, param12,
-                      param13, param14, param15, param16, param17]
-
+        # Parameters list
+        parameters = [
+            param0, param1, param2, param3, param4, param5, param6, param7,
+            param8, param9, param10, param11, param12, param13, param14, 
+            param15, param16, param17
+        ]
         return parameters
 
-
-
-#- - - - - - - - - - - O P T I O N A L  F U N C T I O N S - - - - - - - - - - -#
-
-
-#- - - - - - - - - - - - - - - UPDATE  PARAMETERS - - - - - - - - - - - - - - -#
 
     def updateParameters(self, parameters: list[arcpy.Parameter]) -> None:
 
@@ -871,7 +820,7 @@ class RoseDiagrams(_ToolBase):
         Type_Field = parameters[2] # Field
         Plot_Data = parameters[3] # ValueTable
         Save_Image = parameters[4] # GPBoolean
-        Output_Image = parameters[5] # DEFile
+        Image_Output = parameters[5] # DEFile
         Weighted = parameters[12] # GPBoolean
         Weight_Field = parameters[13] # Field
 
@@ -910,9 +859,9 @@ class RoseDiagrams(_ToolBase):
             defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
             self.resolveValueTableParameter(Plot_Data, defaults)
                                                                                 
-        # Enable Output Image parameter when Save Image option is checked
+        # Enable Image Output parameter when Save Image option is checked
         if self.parameterChanged(Save_Image):
-            Output_Image.enabled = Save_Image.value
+            Image_Output.enabled = Save_Image.value
 
         # Enable Weight Field parameter when Weighted option is checked
         if self.parameterChanged(Weighted):
@@ -936,14 +885,14 @@ class RoseDiagrams(_ToolBase):
         Type_Field = parameters[2] # Field
         Plot_Data = parameters[3] # ValueTable
         Save_Image = parameters[4] # GPBoolean
-        Output_Image = parameters[5] # DEFile
+        Image_Output = parameters[5] # DEFile
         Mirrored = parameters[11] # GPBoolean
         Weighted = parameters[12] # GPBoolean
         Weight_Field = parameters[13] # Field
 
-        # Output Image parameter is required if Save Image option is checked                                                            
-        if Save_Image.value and Output_Image.value is None:
-            Output_Image.setIDMessage('ERROR', 530)
+        # Image Output parameter is required if Save Image option is checked                                                            
+        if Save_Image.value and Image_Output.value is None:
+            Image_Output.setIDMessage('ERROR', 530)
 
         # Set warning to Mirrored option if azimuth data of types added to Plot
         # Data ValueTable spreads more than 180 degrees
@@ -969,9 +918,9 @@ class RoseDiagrams(_ToolBase):
                 msg = f'Azimuth data of {warns} spread more than 180 degrees.'
                 Mirrored.setWarningMessage(msg)
 
-        # Set Weight Field parameter as Required if Weighted option is checked                                                            
+        # Weight Field parameter is required if Weighted option is checked                                                            
         if Weighted.value and Weight_Field.value is None:
-            Weight_Field.setIDMessage('ERROR', 530) # force required parameter
+            Weight_Field.setIDMessage('ERROR', 530)
         
         # Set warning if Weight Field parameter contains negative values 
         if (
@@ -1281,8 +1230,7 @@ class StereoPlots(_ToolBase):
             'Kamb (exponential smoothing)', 2.0, 'Filled', 'Random', 0
         ),
         'Mean_Vector_Data': (
-            'M.E.A.D. + Fisher', 1, 50, 30, 95, 'Random', 'Square (◻)', 5.0, 
-            'NONE', 0.5
+            'MEAD+Fisher', 1, 50, 30, 95, 'Random', 'Square (◻)', 5.0, 'NONE', 0.5
         )
     }
 
@@ -1295,101 +1243,91 @@ class StereoPlots(_ToolBase):
         self.description = 'Add description.'
 
 
+    def getParameterInfo(self) -> list[arcpy.Parameter]:
 
-#- - - - - - - - - - - - - - - - - PARAMETERS - - - - - - - - - - - - - - - - -#
+        """Define parameter definitions.
 
-    def getParameterInfo(self):
+        Returns:
+            list[arcpy.Parameter]: List of tool's parameters.
+        """
 
-        """Define parameter definitions"""
+        #INPUT FEATURE (param0) -----------------------------------------------
+        param0 = arcpy.Parameter(
+            name='input_feature',
+            displayName='Input Feature',
+            direction='Input',
+            datatype='GPFeatureLayer',
+            parameterType='Required'
+        )
+        param0.filter.list = ['Point', 'Polyline', 'Polygon']                  # type: ignore[reportOptionalMemberAccess]
 
+        # AZIMUTH FIELD (param1) ----------------------------------------------
+        param1 = arcpy.Parameter(
+            name='azimuth_field',
+            displayName='Azimuth Field',
+            direction='Input',
+            datatype='Field',
+            parameterType='Required'
+        )
+        param1.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
+        param1.filter.list = NUM_FIELD_FILTERS                                 # type: ignore[reportOptionalMemberAccess]
+        
+        # DIP FIELD (param2) --------------------------------------------------
+        param2 = arcpy.Parameter(
+            name='dip_field',
+            displayName='Dip Field',
+            direction='Input',
+            datatype='Field',
+            parameterType='Required'
+        )
+        param2.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
+        param2.filter.list = NUM_FIELD_FILTERS                                 # type: ignore[reportOptionalMemberAccess]
+        
+        # METHOD FIELD (param3) -----------------------------------------------
+        param3 = arcpy.Parameter(
+            name='method_field',
+            displayName='Method Field',
+            direction='Input',
+            datatype='Field',
+            parameterType='Required'
+        )
+        param3.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
+        param3.filter.list = ['Text']                                          # type: ignore[reportOptionalMemberAccess]
+        
+        # TYPE FIELD (param2) -------------------------------------------------
+        param4 = arcpy.Parameter(
+            name='type_field',
+            displayName='Type Field',
+            direction='Input',
+            datatype='Field',
+            parameterType='Required'
+        )
+        param4.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
+        param4.filter.list = ['Text']                                          # type: ignore[reportOptionalMemberAccess]
 
-
-#---------------------------Input feature (param0)-----------------------------#
-
-        param0 = arcpy.Parameter(displayName = 'Input Feature',
-                                 name = 'in_feature',
-                                 datatype = 'GPFeatureLayer',
-                                 parameterType = 'Required',
-                                 direction = 'Input')
-
-        param0.filter.list = ['Point', 'Polyline', 'Polygon']
-
-
-
-#---------------------------Azimuth Field (param1)-----------------------------#
-
-        param1 = arcpy.Parameter(displayName = 'Azimuth Field',
-                                 name = 'azm_field',
-                                 datatype = 'Field',
-                                 parameterType = 'Required',
-                                 direction = 'Input')
-
-        param1.filter.list = NUM_FIELD_FILTERS
-        param1.parameterDependencies = [param0.name]
-
-
-
-#--------------------------Dip Angle Field (param2)----------------------------#
-
-        param2 = arcpy.Parameter(displayName = 'Dip Angle Field',
-                                 name = 'dip_field',
-                                 datatype = 'Field',
-                                 parameterType = 'Required',
-                                 direction = 'Input')
-
-        param2.filter.list = NUM_FIELD_FILTERS
-        param2.parameterDependencies = [param0.name]
-
-
-
-#----------------------------Method Field (param3)-----------------------------#
-
-        param3 = arcpy.Parameter(displayName = 'Method Field',
-                                 name = 'met_field',
-                                 datatype = 'Field',
-                                 parameterType = 'Required',
-                                 direction = 'Input')
-
-        param3.filter.list = ['Text']
-        param3.parameterDependencies = [param0.name]
-
-
-
-#-----------------------------Type Field (param4)------------------------------#
-
-        param4 = arcpy.Parameter(displayName = 'Type Field',
-                                 name = 'type_field',
-                                 datatype = 'Field',
-                                 parameterType = 'Required',
-                                 direction = 'Input')
-
-        param4.filter.list = ['Text']
-        param4.parameterDependencies = [param0.name]
-
-
-
-#---------------------------Plotting Data (param5)-----------------------------#
-
-        param5 = arcpy.Parameter(displayName = 'Plot Cyclographic Traces, Poles and Vectors',
-                                 name = 'plotData',
-                                 datatype = 'GPValueTable',
-                                 parameterType = 'Optional',
-                                 direction = 'Input')
-
-        param5.columns = [['GPString', 'Data Type'],
-                          ['GPString', 'Color'],
-                          ['GPString', 'Pole/Vector Symbol'],
-                          ['GPDouble', 'Pole/Vector Size'],
-                          ['GPString', 'Cyclographic Trace Style'],
-                          ['GPDouble', 'Line Width']]
-
+        # PLOT DATA (param5) --------------------------------------------------
+        param5 = arcpy.Parameter(
+            name='plot_data',
+            displayName='Plot Data',
+            direction='Input', 
+            datatype='GPValueTable',
+            parameterType='Optional',
+            multiValue=True
+        )
+        param5.columns = [
+            ['GPString', 'Data Type'],
+            ['GPString', 'Color'],
+            ['GPString', 'Pole/Vector Symbol'],
+            ['GPDouble', 'Pole/Vector Size'],
+            ['GPString', 'Cyclographic Trace Style'],
+            ['GPDouble', 'Line Width']
+        ]
         param5.filters[0].type = 'ValueList'
         param5.filters[1].type = 'ValueList'
         param5.filters[2].type = 'ValueList'
         param5.filters[3].type = 'Range'
         param5.filters[4].type = 'ValueList'
         param5.filters[5].type = 'Range'
-
         param5.filters[0].list = []
         param5.filters[1].list = ['Random'] + sorted(COLORS.keys())
         param5.filters[2].list = ['NONE'] + sorted(MARKERS.keys())
@@ -1397,186 +1335,155 @@ class StereoPlots(_ToolBase):
         param5.filters[4].list = ['NONE'] + sorted(LINES.keys())
         param5.filters[5].list = [0.1, 10.0]
 
-
-
-#---------------------Store Image Output checkbox (param6)---------------------#
-
-        param6 = arcpy.Parameter(displayName = 'Store Image Output',
-			         name = 'store_img',
-			         datatype = 'GPBoolean',
-			         parameterType = 'Optional',
-			         direction = 'Input')
-
+        # SAVE IMAGE (param6) -------------------------------------------------
+        param6 = arcpy.Parameter(
+            name='save_image',
+            displayName='Save Image',
+            direction='Input',
+			datatype='GPBoolean',
+			parameterType='Optional'
+		)
         param6.value = True
 
+        # IMAGE OUTPUT (param7) -----------------------------------------------
+        param7 = arcpy.Parameter(
+            name='image_output',
+            displayName='Image Output',
+            direction='Output',
+            datatype='DEFile',
+            parameterType='Optional'
+        )
+        param7.filter.list = IMG_FORMATS                                       # type: ignore[reportOptionalMemberAccess]
 
-
-#-----------------------------Output image (param7)----------------------------#
-
-        param7 = arcpy.Parameter(displayName = 'Output Image',
-                                 name = 'output_img',
-                                 datatype = 'DEFile',
-                                 parameterType = 'Optional',
-                                 direction = 'Output')
-
-        param7.filter.list = IMG_FORMATS
-
-
-
-#-----------------------------Image DPI (param8)-------------------------------#
-
-        param8 = arcpy.Parameter(displayName = 'Image Resolution (DPI)',
-                                 name = 'image_DPI',
-                                 datatype = 'GPLong',
-                                 parameterType = 'Optional',
-                                 direction = 'Input')
-
+        # IMAGE DPI (param8) --------------------------------------------------
+        param8 = arcpy.Parameter(
+            name='image_dpi',
+            displayName='Image Resolution (DPI)',
+            direction='Input',
+            datatype='GPLong',
+            parameterType='Optional'
+        )
+        param8.controlCLSID = '{C8C46E43-3D27-4485-9B38-A49F3AC588D9}'
+        param8.filter.type = 'Range'                                           # type: ignore[reportOptionalMemberAccess]
+        param8.filter.list = [0, 600]                                          # type: ignore[reportOptionalMemberAccess]                                       
         param8.value = 200
-        param8.filter.type = 'Range'
-        param8.filter.list = [0, 600]
 
-
-
-#-----------------------------Net Type (param9)--------------------------------#
-
-        param9 = arcpy.Parameter(displayName = 'Net Type',
-        			 name = 'net_type',
-                                 datatype = 'GPString',
-                                 parameterType = 'Optional',
-			         direction = 'Input')
-
-        param9.category = 'Plotting Options'
-
-        param9.filter.type = 'ValueList'
-        param9.filter.list = ['Schmidt (Equal Area)', 'Wulff (Equal Angle)']
+        # NET TYPE (param9) ---------------------------------------------------
+        param9 = arcpy.Parameter(
+            name='net_type',
+            displayName='Net Type',
+            direction='Input',
+            datatype='GPString',
+            parameterType='Optional',
+            category='Advanced Options'
+		)
+        param9.filter.type = 'ValueList'                                       # type: ignore[reportOptionalMemberAccess]
+        param9.filter.list = ['Schmidt (Equal Area)', 'Wulff (Equal Angle)']   # type: ignore[reportOptionalMemberAccess]
         param9.value = 'Schmidt (Equal Area)'
 
-
-
-#---------------------Write Log File checkbox (param10)------------------------#
-
-        param10 = arcpy.Parameter(displayName = 'Write Log File',
-			          name = 'write_log',
-			          datatype = 'GPBoolean',
-			          parameterType = 'Optional',
-			          direction = 'Input')
-
-        param10.category = 'Plotting Options'
-
+        # WRITE LOG (param10) -------------------------------------------------
+        param10 = arcpy.Parameter(
+            name='write_log',
+            displayName='Log File',
+            direction='Input',
+			datatype='GPBoolean',
+			parameterType='Optional',
+            category='Advanced Options'
+		)
         param10.value = False
 
+        # PLOT TITLE (param11) ------------------------------------------------
+        param11 = arcpy.Parameter(
+            name='plot_title',
+            displayName='Plot Title',
+            direction='Input',
+            datatype='GPString',
+            parameterType='Optional',
+            category='Plot Customization'
+        )
 
-
-#---------------------------Title Label (param11)------------------------------#
-
-        param11 = arcpy.Parameter(displayName = 'Title Label',
-                                  name = 'title_label',
-                                  datatype = 'GPString',
-                                  parameterType = 'Optional',
-                                  direction = 'Input')
-
-        param11.category = 'Plot Customisation'
-
-
-
-#------------------------Tick Marks Number (param12)---------------------------#
-
-        param12 = arcpy.Parameter(displayName = 'Set Number of Tick Marks',
-                                  name = 'n_ticks',
-                                  datatype = 'GPLong',
-                                  parameterType = 'Optional',
-                                  direction = 'Input')
-
-        param12.category = 'Plot Customisation'
-
-        param12.filter.type = 'ValueList'
-        param12.filter.list = [0, 1, 4, 8]
+        # NUMBER OF TICK MARKS (param12) --------------------------------------
+        param12 = arcpy.Parameter(
+            name='num_ticks',
+            displayName='Number of Tick Marks',
+            direction='Input',
+            datatype='GPLong',
+            parameterType='Optional',
+            category='Plot Customization'
+        )
+        param12.filter.type = 'ValueList'                                      # type: ignore[reportOptionalMemberAccess]
+        param12.filter.list = [0, 1, 4, 8]                                     # type: ignore[reportOptionalMemberAccess]
         param12.value = 8
 
-
-
-#--------------------------Tick Marks Type (param13)---------------------------#
-
-        param13 = arcpy.Parameter(displayName = 'Tick Marks Type',
-                                  name = 'ticks_type',
-                                  datatype = 'GPString',
-                                  parameterType = 'Optional',
-                                  direction = 'Input')
-
-        param13.category = 'Plot Customisation'
-
-        param13.filter.type = 'ValueList'
-        param13.filter.list = list(COMPASS_LABELS.keys())
+        # TICK MARKS FORMAT (param13) -----------------------------------------
+        param13 = arcpy.Parameter(
+            name='ticks_format',
+            displayName='Tick Marks Format',
+            direction='Input',
+            datatype='GPString',
+            parameterType='Optional',
+            category='Plot Customization'
+        )
+        param13.filter.type = 'ValueList'                                      # type: ignore[reportOptionalMemberAccess]
+        param13.filter.list = list(COMPASS_LABELS.keys())                      # type: ignore[reportOptionalMemberAccess]
         param13.value = 'Degrees'
 
-
-
-#-------------------------Show Grid checkbox (param14)-------------------------#
-
-        param14 = arcpy.Parameter(displayName = 'Show Grid',
-			          name = 'show_grid',
-			          datatype = 'GPBoolean',
-			          parameterType = 'Optional',
-			          direction = 'Input')
-
-        param14.category = 'Plot Customisation'
-
+        # SHOW GRID (param14) -------------------------------------------------
+        param14 = arcpy.Parameter(
+            name='show_grid',
+            displayName='Grid',
+            direction='Input',
+		    datatype='GPBoolean',
+			parameterType='Optional',
+            category='Plot Customization'
+		)
         param14.value = True
 
-
-
-#-----------------------Show Legend checkbox (param15)-------------------------#
-
-        param15 = arcpy.Parameter(displayName = 'Show Legend',
-			          name = 'show_legend',
-                                  datatype = 'GPBoolean',
-			          parameterType = 'Optional',
-			          direction = 'Input')
-
-        param15.category = 'Plot Customisation'
-
+        # SHOW LEGEND (param15) -----------------------------------------------
+        param15 = arcpy.Parameter(
+            name='show_legend',
+            displayName='Show Legend',
+            direction='Input',
+            datatype='GPBoolean',
+			parameterType='Optional',
+            category='Plot Customization'
+		)
         param15.value = True
 
-
-
-#-----------------Show Samples Number label checkbox (param16)-----------------#
-
-        param16 = arcpy.Parameter(displayName = 'Show Samples Number label',
-                                  name = 'show_nSamples',
-			          datatype = 'GPBoolean',
-			          parameterType = 'Optional',
-			          direction = 'Input')
-
-        param16.category = 'Plot Customisation'
-
+        # SHOW NUMBER OF LABELS (param16) -------------------------------------
+        param16 = arcpy.Parameter(
+            name='show_num_samples',
+            displayName='Number of Samples',
+            direction='Input',
+			datatype='GPBoolean',
+			parameterType='Optional',
+            category='Plot Customization'
+		)
         param16.value = True
 
-
-
-#---------------------------Apply Contour (param17)----------------------------#
-
-        param17 = arcpy.Parameter(displayName = 'Apply Contour',
-                                  name = 'contour',
-                                  datatype = 'GPValueTable',
-                                  parameterType = 'Optional',
-                                  direction = 'Input')
-
-        param17.columns = [['GPString', 'Data Type'],
-                           ['GPString', 'Method'],
-                           ['GPDouble', 'Standard deviation (σ)'],
-                           ['GPString', 'Style'],
-                           ['GPString', 'Color'],
-                           ['GPLong', 'Transparency (%)']]
-
-        param17.category = 'Contour & Statistics'
-
+        # CONTOUR (param17) ---------------------------------------------------
+        param17 = arcpy.Parameter(
+            name='contour',
+            displayName='Contour',
+            direction='Input',
+            datatype='GPValueTable',
+            parameterType='Optional',
+            category='Contour & Statistics'
+        )
+        param17.columns = [
+            ['GPString', 'Data Type'],
+            ['GPString', 'Method'],
+            ['GPDouble', 'Standard deviation (σ)'],
+            ['GPString', 'Style'],
+            ['GPString', 'Color'],
+            ['GPLong', 'Transparency (%)']
+        ]
         param17.filters[0].type = 'ValueList'
         param17.filters[1].type = 'ValueList'
         param17.filters[2].type = 'Range'
         param17.filters[3].type = 'ValueList'
         param17.filters[4].type = 'ValueList'
         param17.filters[5].type = 'Range'
-
         param17.filters[0].list = []
         param17.filters[1].list = sorted(CONTOUR_METHODS.keys())
         param17.filters[2].list = [0.0, 100.0]
@@ -1584,44 +1491,39 @@ class StereoPlots(_ToolBase):
         param17.filters[4].list = ['Random'] + list(CONTOUR_COLORMAPS.keys())
         param17.filters[5].list = [0, 100]
 
-
-
-#---------------------------Show Colorbar (param18)----------------------------#
-
-        param18 = arcpy.Parameter(displayName = 'Show Contour Colorbar',
-			          name = 'show_colorbar',
-			          datatype = 'GPBoolean',
-			          parameterType = 'Optional',
-			          direction = 'Input')
-
-        param18.category = 'Contour & Statistics'
-
+        # SHOW COLORBAR (param18) ---------------------------------------------
+        param18 = arcpy.Parameter(
+            name='show_colorbar',
+            displayName='Contour Colorbar',
+            direction='Input',
+		    datatype='GPBoolean',
+			parameterType='Optional',
+            category='Contour & Statistics'
+		)
         param18.value = True
 
-
-
-#------------------------Extract mean vectors (param19)------------------------#
-
-        param19 = arcpy.Parameter(displayName = 'Extract Mean Vector(s)',
-                                  name = 'extract_means',
-                                  datatype = 'GPValueTable',
-                                  parameterType = 'Optional',
-                                  direction = 'Input')
-
-        param19.columns = [['GPString', 'Data Type'],
-                           ['GPString', 'Algorithm'],
-                           ['GPLong', 'Number of Clusters'],
-                           ['GPLong', 'M.E.A.D. Azimuth tolerance (%)'],
-                           ['GPLong', 'M.E.A.D. Inclination tolerance (%)'],
-                           ['GPLong', 'Fisher confidence (%)'],
-                           ['GPString', 'Color'],
-                           ['GPString', 'Pole/Vector Symbol'],
-                           ['GPDouble', 'Pole/Vector Size'],
-                           ['GPString', 'Cyclographic Trace Style'],
-                           ['GPDouble', 'Line Width']]
-
-        param19.category = 'Contour & Statistics'
-
+        # MEAN VECTOR (param19) -----------------------------------------------
+        param19 = arcpy.Parameter(
+            name='mean_vector',
+            displayName='Mean Vector(s)',
+            direction='Input',
+            datatype='GPValueTable',
+            parameterType='Optional',
+            category='Contour & Statistics'
+        )
+        param19.columns = [
+            ['GPString', 'Data Type'],
+            ['GPString', 'Algorithm'],
+            ['GPLong', 'Number of Clusters'],
+            ['GPLong', 'MEAD Azimuth tolerance (%)'],
+            ['GPLong', 'MEAD Inclination tolerance (%)'],
+            ['GPLong', 'Fisher confidence (%)'],
+            ['GPString', 'Color'],
+            ['GPString', 'Pole/Vector Symbol'],
+            ['GPDouble', 'Pole/Vector Size'],
+            ['GPString', 'Cyclographic Trace Style'],
+            ['GPDouble', 'Line Width']
+        ]
         param19.filters[0].type = 'ValueList'
         param19.filters[1].type = 'ValueList'
         param19.filters[2].type = 'Range'
@@ -1633,10 +1535,8 @@ class StereoPlots(_ToolBase):
         param19.filters[8].type = 'Range'
         param19.filters[9].type = 'ValueList'
         param19.filters[10].type = 'Range'
-
         param19.filters[0].list = []
-        param19.filters[1].list = ['M.E.A.D.', 'M.E.A.D. + Fisher', 'K-means',
-                                   'Bingham']
+        param19.filters[1].list = ['MEAD', 'MEAD+Fisher', 'K-means', 'Bingham']
         param19.filters[2].list = [1, 100]
         param19.filters[3].list = [0, 100]
         param19.filters[4].list = [0, 100]
@@ -1647,38 +1547,25 @@ class StereoPlots(_ToolBase):
         param19.filters[9].list = ['NONE'] + sorted(LINES.keys())
         param19.filters[10].list = [0.1, 10.0]
 
-
-
-#----------------------Track M.E.A.D. behaviour (param20)----------------------#
-
-        param20 = arcpy.Parameter(displayName = 'Track M.E.A.D. behaviour',
-                                  name = 'track_MEAD',
-                                  datatype = 'GPBoolean',
-                                  parameterType = 'Optional',
-                                  direction = 'Input')
-
-        param20.category = 'Contour & Statistics'
-
+        # TRACK MEAD (param20) ------------------------------------------------
+        param20 = arcpy.Parameter(
+            name='track_mead',
+            displayName='Track MEAD Clustering',
+            direction='Input',
+            datatype='GPBoolean',
+            parameterType='Optional',
+            category='Contour & Statistics'
+        )
         param20.value = False
 
-
-
-#-------------------------------Parameters LIST--------------------------------#
-
-        parameters = [param0, param1, param2, param3, param4, param5, param6,
-                      param7, param8, param9, param10, param11, param12,
-                      param13, param14, param15, param16, param17, param18,
-                      param19, param20]
-
-
-
+        # Parameters list
+        parameters = [
+            param0, param1, param2, param3, param4, param5, param6, param7,
+            param8, param9, param10, param11, param12, param13, param14,
+            param15, param16, param17, param18, param19, param20
+        ]
         return parameters
-
-
-#- - - - - - - - - - - O P T I O N A L  F U N C T I O N S - - - - - - - - - - -#
-
-
-#- - - - - - - - - - - - - - - UPDATE  PARAMETERS - - - - - - - - - - - - - - -#
+    
 
     def updateParameters(self, parameters: list[arcpy.Parameter]) -> None:
 
@@ -1698,7 +1585,7 @@ class StereoPlots(_ToolBase):
         Type_Field = parameters[4] # Field
         Plot_Data = parameters[5] # ValueTable
         Save_Image = parameters[6] # GPBoolean
-        Output_Image = parameters[7] # DEFile
+        Image_Output = parameters[7] # DEFile
         Contour_Data = parameters[17] # ValueTable
         Mean_Vector_Data = parameters[19] # ValueTable
 
@@ -1754,7 +1641,7 @@ class StereoPlots(_ToolBase):
 
         # Enable Output Image parameter when Save Image option is checked
         if self.parameterChanged(Save_Image):
-            Output_Image.enabled = Save_Image.value
+            Image_Output.enabled = Save_Image.value
 
 
 #--------------Updating parameters[18] according to parameters[17]-------------#
@@ -1782,9 +1669,6 @@ class StereoPlots(_ToolBase):
         return
 
 
-
-#- - - - - - - - - - - - - - - UPDATE  MESSAGES - - - - - - - - - - - - - - - -#
-
     def updateMessages(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the messages created by internal validation for each tool
@@ -1796,14 +1680,14 @@ class StereoPlots(_ToolBase):
 
         # Parameters accessed by this method
         Save_Image = parameters[6] # GPBoolean
-        Output_Image = parameters[7] # DEFile
+        Image_Output = parameters[7] # DEFile
         Net_Type = parameters[9] # GPString
         Contour_Data = parameters[17] # ValueTable
         Mean_Vector_Data = parameters[19] # ValueTable
 
         # Output Image parameter is required if Save Image option is checked                                                            
-        if Save_Image.value and Output_Image.value is None:
-            Output_Image.setIDMessage('ERROR', 530)
+        if Save_Image.value and Image_Output.value is None:
+            Image_Output.setIDMessage('ERROR', 530)
 
         # Set warning to Net Type parameter when "Wulff" net is selected with
         # active statistical analysis (Contour or Mean Vector Extraction)
@@ -1822,9 +1706,6 @@ class StereoPlots(_ToolBase):
 
         return
 
-
-
-#- - - - - - - - - - - - - - - - - SET  LICENSE - - - - - - - - - - - - - - - -#
 
     def isLicensed(self):
 
@@ -2324,7 +2205,7 @@ class StereoPlots(_ToolBase):
                         typeinfo = '{} {} ->\t'.format(key[0], desc)
                         LOG.write(typeinfo + '\t'.join(m_tot) + u'\n')
 
-                        if key[1] == 'M.E.A.D. + Fisher':
+                        if key[1] == 'MEAD+Fisher':
                             r_values = ['{0:0.3f}'.format(r) for r in fisher_stats[key[0]][0::3]]
                             r_title = ' - R value (length of the mean vector) ->\t\t\t'
                             angles = ['{0:0.2f}'.format(a) for a in fisher_stats[key[0]][1::3]]
