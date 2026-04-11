@@ -1637,7 +1637,9 @@ class StereoPlots(_ToolBase):
         Save_Image = parameters[6] # GPBoolean
         Image_Output = parameters[7] # DEFile
         Contour_Data = parameters[17] # ValueTable
+        Show_Colorbar = parameters[18] # GPBoolean
         Mean_Vector_Data = parameters[19] # ValueTable
+        Track_Mead = parameters[20] # GPBoolean
 
         # Attempt to fill Azimuth, Dip, Method and Type fields parameters with
         # matching fields from the newly selected Input Feature. Clear them if
@@ -1649,8 +1651,8 @@ class StereoPlots(_ToolBase):
             Type_Field.value = None
 
         elif self.parameterChanged(Input_Feature):
-            describe = arcpy.da.Describe(Input_Feature.value)
-            fields: list[arcpy.Field] = describe['fields']
+            describe = arcpy.Describe(Input_Feature.value)
+            fields: list[arcpy.Field] = describe.fields
             numf = [f for f in fields if f.type in NUM_FIELD_TYPES]
             strf = [f for f in fields if f.type == 'String']
             self.inferFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
@@ -1693,28 +1695,15 @@ class StereoPlots(_ToolBase):
         if self.parameterChanged(Save_Image):
             Image_Output.enabled = Save_Image.value
 
+        # Disable and uncheck Show Colorbar option when Contour Data is empty
+        Show_Colorbar.enabled = Contour_Data.values is not None
+        if not Show_Colorbar.enabled:
+            Show_Colorbar.value = False
 
-#--------------Updating parameters[18] according to parameters[17]-------------#
-                                                                                # parameters[17] = Apply Contour
-        if parameters[17].values != None:                                       # parameters[18] = Show Colorbar
-            parameters[18].enabled = True
-
-        else:
-            parameters[18].value = False
-            parameters[18].enabled = False
-
-
-
-#--------------Updating parameters[20] according to parameters[19]-------------#
-                                                                                # parameters[19] = Extract Mean Vectors
-        if parameters[19].values != None:                                       # parameters[20] = Track M.E.A.D. behaviour
-            parameters[20].enabled = True
-
-        else:
-            parameters[20].value = False
-            parameters[20].enabled = False
-
-
+        # Disable and uncheck Track MEAD option when Mean Vector Data is empty
+        Track_Mead.enabled = Mean_Vector_Data.values is not None
+        if not Track_Mead.enabled:
+            Track_Mead.value = False
 
         return
 
