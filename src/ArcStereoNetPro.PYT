@@ -12,7 +12,7 @@ from matplotlib.projections.polar import PolarAxes
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as mpe
 import numpy as np
-from typing import Any, Iterable
+from typing import Any, Iterable, TypedDict
 from os import path, startfile
 
 
@@ -309,7 +309,12 @@ def angles_clustering(strikes, dips, measurement='poles', tol_str=0.5, tol_dip=0
 
 
 
-#- - - - - - A R C S T E R E O N E T    I N I T I A L I S A T I O N - - - - - -#
+class StatItem(TypedDict):
+    n: int
+    clust: dict[str, tuple[str, str]]
+Statistics = dict[str, StatItem]
+
+
 
 class Toolbox(object):
 
@@ -322,6 +327,7 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [RoseDiagrams, StereoPlots, GraphToHyperlink]
+
 
 
 class _ToolBase(object):
@@ -411,6 +417,7 @@ class _ToolBase(object):
 
 
     def parameterChanged(self, parameter: arcpy.Parameter) -> bool:
+
         """Check if a parameter has been altered and not yet validated.
 
         Args:
@@ -419,9 +426,51 @@ class _ToolBase(object):
         Returns:
             bool: Whether the parameter has changed.
         """
+
         return parameter.altered and not parameter.hasBeenValidated
     
+    
+    def getFieldParameterAlias(
+        self,
+        field_parameter: arcpy.Parameter,
+        feature_parameter: arcpy.Parameter
+    ) -> str:
         
+        """Get alias name, if it exists, of Field parameter 'field_parameter' 
+        that belongs to Feature Layer parameter 'feature_parameter'. Fallback
+        on field name if no alias is found.
+
+        Args:
+            field_parameter (arcpy.Parameter): Field parameter to check.
+            feature_parameter (arcpy.Parameter): Parent FeatureLayer parameter.
+
+        Raises:
+            TypeError: Datatype of 'field_parameter' must be "Field".
+            TypeError: Datatype of 'feature_parameter' must be "Feature Layer".
+
+        Returns:
+            str: Field alias name, if available. Field name otherwise.
+        """
+
+        # Enforce requirement of a Field parameter
+        if (dt := field_parameter.datatype) != 'Field':
+            raise TypeError(f"Parameter must be of type Field, not {dt}")
+        
+        # Enforce requirement of a Feature Layer parameter
+        if (dt := feature_parameter.datatype) != 'Feature Layer':
+            raise TypeError(f"Parameter must be of type Feature Layer, not {dt}")
+        
+        # Return field alias if it exists. Fallback on field name
+        feature_desc = arcpy.Describe(feature_parameter.value)
+        field_list: list[arcpy.Field] = feature_desc.fields
+        for f in field_list:
+            if f.name == field_parameter.valueAsText:
+                alias = f.aliasName
+                return alias if alias else f.name
+        else:
+            return field_parameter.valueAsText
+    
+    
     def inferFieldParameter(
         self,
         parameter: arcpy.Parameter,
@@ -524,6 +573,7 @@ class _ToolBase(object):
         operator: str,
         value: Iterable[Any] | Any
     ) -> str:
+        
         """Generate a where clause, useful when iterating data using cursors.
 
         Args:
@@ -535,13 +585,13 @@ class _ToolBase(object):
         Returns:
             str: SQL-formatted where clause.
         """
+
         fieldname = arcpy.AddFieldDelimiters(fc.valueAsText, field.valueAsText)
         if operator in ('IN', 'NOT IN'):
             value = f'''({", ".join(f"'{x}'" for x in value)})'''
         return f'{fieldname} {operator} {value}'
 
 
-#- - - - - - - - - - R  O  S  E     D  I  A  G  R  A  M  S - - - - - - - - - - #
 
 class RoseDiagrams(_ToolBase):
 
@@ -557,6 +607,7 @@ class RoseDiagrams(_ToolBase):
 
 
     def hasObtuseSpread(self, angles: list[int | float]) -> bool:
+
         """Check if the provided array of angles spreads more than 180 degrees.
 
         Args:
@@ -565,6 +616,7 @@ class RoseDiagrams(_ToolBase):
         Returns:
             bool: Whether the angles spread more than 180 degrees.
         """
+
         array = np.unwrap(np.array(angles), period=360)
         return array.max() - array.min() > 180
 
@@ -669,9 +721,9 @@ class RoseDiagrams(_ToolBase):
         param6.filter.list = [0, 600]                                          # type: ignore[reportOptionalMemberAccess]
         param6.value = 200
 
-        # PLOT TITLE (param7) -------------------------------------------------
+        # TITLE (param7) ------------------------------------------------------
         param7 = arcpy.Parameter(
-            name='plot_title',
+            name='title',
             displayName='Plot Title',
             direction='Input',
             datatype='GPString',
@@ -771,9 +823,9 @@ class RoseDiagrams(_ToolBase):
         param15.filter.list = [1, 360]                                         # type: ignore[reportOptionalMemberAccess]
         param15.value = 10
 
-        # RADIUS LABELS ANGLE (param16) ---------------------------------------
+        # RADIAL LABELS ANGLE (param16) ---------------------------------------
         param16 = arcpy.Parameter(
-            name='radius_labels_angle',
+            name='radial_labels_angle',
             displayName='Labels Angle',
             direction='Input',
             datatype='GPLong',
@@ -833,8 +885,8 @@ class RoseDiagrams(_ToolBase):
             Weight_Field.value = None
 
         elif self.parameterChanged(Input_Feature):
-            describe = arcpy.da.Describe(Input_Feature.value)
-            fields: list[arcpy.Field] = describe['fields']
+            describe = arcpy.Describe(Input_Feature.value)
+            fields: list[arcpy.Field] = describe.fields
             numf = [f for f in fields if f.type in NUM_FIELD_TYPES]
             strf = [f for f in fields if f.type == 'String']
             self.inferFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
@@ -854,7 +906,6 @@ class RoseDiagrams(_ToolBase):
 
         # Attempt to fill empty or invalid entries of Plot Data ValueTable 
         # parameter when it changes (entry added, modified, moved or removed)
-        # if self.parameterChanged(Plot_Data):
         if self.parameterChanged(Plot_Data):
             defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
             self.resolveValueTableParameter(Plot_Data, defaults)
@@ -943,282 +994,281 @@ class RoseDiagrams(_ToolBase):
         return True
 
 
+    def execute(self, parameters: list[arcpy.Parameter], messages) -> None:
 
-#- - - - - - - - - - - - - T O O L  E X E C U T I O N - - - - - - - - - - - - -#
+        """The source code of the tool.
 
-    def execute(self, parameters: list[arcpy.Parameter], messages):
+        Args:
+            parameters (list[arcpy.Parameter]): Tool's parameters.
+            messages: Tool's messages.
+        """
 
-        """The source code of the tool."""
-        
-#---------------------------Parameters assignation-----------------------------#
+        # Intialize statistics dictionary
+        statistics: Statistics = {}
 
-        IN_FEATURE = parameters[0]
-        AZM_FIELD = parameters[1]
-        TYPE_FIELD = parameters[2]
-        PLOTTING_DATA = parameters[3]
-        STORE_IMG = parameters[4]
-        OUTPUT_IMG = parameters[5]
-        IMG_DPI = parameters[6]
-        TITLE = parameters[7]
-        SHOW_GRID = parameters[8]
-        SHOW_LEGEND = parameters[9]
-        SHOW_NSAMPLES = parameters[10]
-        MIRRORED = parameters[11]
-        WEIGHTED = parameters[12]
-        WGT_FIELD = parameters[13]
-        WRITE_LOG = parameters[14]
-        TICKSPACING = parameters[15]
-        RGRIDS_ANGLE = parameters[16]
-        GRIDSPACE = parameters[17]
+        # Get parameters
+        Input_Feature = parameters[0]
+        Azimuth_Field = parameters[1]
+        Type_Field = parameters[2]
+        Plot_Data = parameters[3]
+        Save_Image = parameters[4]
+        Image_Output = parameters[5]
+        Image_Dpi = parameters[6]
+        Title = parameters[7]
+        Show_Grid = parameters[8]
+        Show_Legend = parameters[9]
+        Show_Num_Samples = parameters[10]
+        Mirrored = parameters[11]
+        Weighted = parameters[12]
+        Weight_Field = parameters[13]
+        Write_Log = parameters[14]
+        Tick_Spacing = parameters[15]
+        Radial_Labels_Angle = parameters[16]
+        Grid_Space = parameters[17]
 
-
-#-------------------------------Importing Data---------------------------------#
-
-        fields_params = [AZM_FIELD, TYPE_FIELD]
-        if WEIGHTED.value:
-            fields_params.append(WGT_FIELD)
-        fields = tuple(fp.valueAsText for fp in fields_params)                  # Supported field names, later referred as: [0],[1],([2])
-        source = IN_FEATURE.valueAsText
-        data_array = arcpy.da.FeatureClassToNumPyArray(source, fields,
-                                                       null_value='')
-        data = data_array.tolist()
-
-        if STORE_IMG.value:
-            coords = arcpy.da.FeatureClassToNumPyArray(source, 'Shape')         # Extracting centroid coordinates
-            centroid = np.nanmean(coords.tolist(), axis=0)[0]
-
-
-
-#-------------------------Pre-Elaboration of Data------------------------------#
-
-        # Determine image output filepath
-        if STORE_IMG.value:
-            image_outpath = OUTPUT_IMG.valueAsText
-        else:
-            image_outpath = temp_filepath('RoseDiagram_temp.png')
-
-#>>> Initialize projected data types set & statistics dictionaries for log file
-
-        proj_types = set()
-
-        if WRITE_LOG.value:
-            stats_log = {}
-
-        # Initialize plot
-        fig = Figure(figsize=(6, 6), dpi=IMG_DPI.value)
+        # PLOT INITIALIZATION -------------------------------------------------
+        # Create figure with polar ax
+        fig = Figure(figsize=(6, 6), dpi=Image_Dpi.value)
         ax = PolarAxes(fig, 111)
         fig.add_subplot(ax)
 
         # Set title
-        title = TITLE.valueAsText if TITLE.value else IN_FEATURE.valueAsText
+        title = Title.valueAsText if Title.value else Input_Feature.valueAsText
         ax.set_title(title, y=1.1, fontsize=18)
 
         # Set grid
         ax.set_theta_zero_location('N')
         ax.set_theta_direction(-1)
-        grid_format = np.arange(0, 360, TICKSPACING.value)
+        grid_format = np.arange(0, 360, Tick_Spacing.value)
         ax.set_thetagrids(grid_format, grid_format)
-        ax.grid(SHOW_GRID.value)
+        ax.grid(Show_Grid.value)
 
+        # DATA PLOTTING -------------------------------------------------------
+        # Parse oriented data
+        fields = [Azimuth_Field.valueAsText, Type_Field.valueAsText]
+        if Weighted.value:
+            fields.append(Weight_Field.valueAsText)
 
-#----------------------------Plotting of Data----------------------------------#
+        data = arcpy.da.FeatureClassToNumPyArray(
+            in_table=Input_Feature.valueAsText,
+            field_names=fields,
+            null_value=''
+        )
 
-        barLengths = []
-        plot_data = PLOTTING_DATA.values if PLOTTING_DATA.values is not None else []
-        for row in plot_data:
-            _type, _color, _meanVect, _nClusts, _azmTol = row
+        # Plot data
+        max_bar_length = 0
+        plot_data = Plot_Data.values if Plot_Data.values is not None else []
+        for (_type, _color, _mean_vect, _nclusts, _azm_tol) in plot_data:
+           
+            # Get azimuth and weight values from data filtered by _type
+            flt = data[data[Type_Field.valueAsText] == _type]
+            azimuth = flt[Azimuth_Field.valueAsText] % 360
+            weights = flt[Weight_Field.valueAsText] if Weighted.value else None
 
-            if _color == 'Random':                                              # Select a random color if not specified by the user
-                random_index = np.random.randint(len(COLORS))
-                _color = list(COLORS.keys())[random_index]
+            # Define label for _type to ensure tracking all plotted instances
+            type_label = _type
+            suffix = 0
+            while type_label in statistics.keys():
+                suffix += 1
+                type_label = f'{_type}({suffix})' 
 
-            proj_types.add(_type)                                               # Add data type to projected data types set
+            # Compute histogram
+            bins = np.arange(-5, 366, 10)
+            hist, _ = np.histogram(azimuth, bins, weights=weights)
 
+            # Wrap around circular histogram data
+            hist[0] += hist[-1]
+            hist = hist[:-1]
 
-            strikes = [s[0] % 360 for s in data if s[1] == _type]
-            if WEIGHTED.value:
-                weights = [w[2] for w in data if w[1] == _type]
+            # Format histogram data for mirrored diagram, if required
+            if Mirrored.value:
+                half = np.sum(np.split(hist, 2), axis=0)
+                hist = np.concatenate([half, half])
 
-            strike_freq, bin_edges = np.histogram(strikes,
-                                                  np.arange(-5, 366, 10),
-                                                  weights = weights if WEIGHTED.value else None)
+            # Update maximum bar lenght
+            max_bar_length = max(max_bar_length, hist.max())
 
-            strike_freq[0] += strike_freq[-1]
+            # Add histogram data to plot
+            if _color == 'Random':                                              
+                _color = np.random.choice(list(COLORS.keys()))
+            ax.bar(
+                x=np.radians(np.arange(0, 360, 10)),
+                height=hist,
+                width=np.radians(10),
+                bottom=0.0,
+                align='center',
+                color=COLORS.get(_color),
+                edgecolor='w' if _color == 'Black' else 'k', # TODO make outline lightgray when color is black
+                label=type_label
+            )
 
-            if MIRRORED.value:
-                half = np.sum(np.split(strike_freq[:-1], 2), 0)
-                dataShow = np.concatenate([half, half])
-            else:
-                dataShow = strike_freq[:-1]
+            # Compute mean vector(s) if required
+            cluster_stats: dict[str, tuple[str, str]] = {}
+            if _mean_vect == 'YES':
+                
+                # Treat weights as dips data and set the dip tolerance to 100%
+                # so that the output couples will be (azimuth-weight) and the
+                # weight info for each azimuth value is preserved and used in 
+                # avg_angle function
+                mead_clusters = angles_clustering(
+                    azimuth.tolist(),
+                    weights.tolist() if weights is not None else [1] * len(azimuth),
+                    tol_str=_azm_tol / 100,
+                    tol_dip=1,                       
+                    n_clusts=_nclusts
+                )               
 
-            barLengths.append(max(dataShow))
+                # Add arrows to plot indicating mean vector(s) for each cluster                                        
+                for i, cluster in enumerate(mead_clusters, start=1):
+                    azm, wgt = zip(*cluster)
+                    avg_deg, r_mean = avg_angle(azm, wgt)
 
-            ax.bar(np.radians(np.arange(0, 360, 10)), bottom = 0.0,
-                   height = dataShow, width = np.radians(10),
-                   align = 'center',
-                   color = COLORS[_color],
-                   edgecolor = 'w' if _color == 'Black' else 'k',
-                   label = _type)
-
-
-            if _meanVect == 'YES':                                              # Plot mean vector if required
-
-                wgt = weights if WEIGHTED.value else [1]*len(strikes)
-                _azmTol = _azmTol / 100.
-
-                mead_clust = angles_clustering(strikes, wgt,
-                                               tol_str=_azmTol,
-                                               tol_dip=1,                       # Treat weights as dips data and set the dip tolerance to 100%
-                                               n_clusts=_nClusts)               # so that the output couples will be (strike-weight) and the
-                                                                                # weight info for each strike value is preserved and used inside avg_angle function
-                for mc in mead_clust:
-                    a, w = zip(*mc)
-
-                    avg_deg, R_mean = avg_angle(a, w)
-
-                    quiver_ec = 'black' if _color == 'Red' else 'red'
-                    n_quivs = 2 if MIRRORED.value else 1
                     sign = 1
-                    for q in range(n_quivs):
-                        ax.quiver(0, 0,
-                                  sign * sin_r(avg_deg), sign * cos_r(avg_deg),
-                                  facecolor = COLORS[_color],
-                                  edgecolor = quiver_ec,
-                                  linewidth = 1.25,
-                                  scale = 2. / R_mean,
-                                  width = 0.01,
-                                  zorder = 2)
-                        sign *= -1
+                    for _ in range(1 + Mirrored.value):
+                        ax.quiver(
+                            0,
+                            0,
+                            sign * sin_r(avg_deg),
+                            sign * cos_r(avg_deg),
+                            scale=2 / r_mean,
+                            width=0.01,
+                            facecolor=COLORS.get(_color),
+                            edgecolor='black' if _color == 'Red' else 'red',
+                            linewidth=1.25,
+                            zorder=2
+                        )
+                        sign = -1
 
+                    # Update cluster statistics
+                    stat1, stat2 = f'{avg_deg}°', str(round(r_mean, 3))
+                    if Mirrored.value:
+                        stat1 += f' ({(avg_deg + 180) % 360}°)'
+                    cluster_stats[str(i)] = (stat1, stat2)
+                    
 
-                    if WRITE_LOG.value:
-                        if n_quivs == 2:
-                            avg_deg = '{} ({})'.format(avg_deg, (avg_deg+180)%360)
-                        if _type not in stats_log:
-                            stats_log[_type] = (avg_deg, R_mean)
-                        else:
-                            stats_log[_type] += (avg_deg, R_mean)
+            # Populate statistic for _type data
+            statistics[type_label] = {
+                "n": len(azimuth),
+                "clust": cluster_stats
+            }
 
+        # PLOT FINALIZATION ---------------------------------------------------
+        # Set radial gridlines and labels
+        radii = np.linspace(0, max_bar_length, Grid_Space.value)
+        fmt = '%.2e' if radii[1] <= 10**-3 or radii[-1] >= 10**6 else '%.2f'
+        ax.set_rgrids(
+            radii=radii,
+            angle=Radial_Labels_Angle.value,
+            fmt=fmt,
+            weight='semibold',
+            size=10,
+            color='white',
+            path_effects=[mpe.withStroke(linewidth=2, foreground='k')]
+        )
 
+        # Set optional legend
+        if Show_Legend.value:
+            hands, lbls = ax.get_legend_handles_labels()
+            by_lbl = {l: h for l, h in sorted(dict(zip(lbls, hands)).items())}
+            if len(by_lbl):
+                ax.legend(
+                    handles=by_lbl.values(),
+                    labels=by_lbl.keys(),
+                    loc='upper left',
+                    bbox_to_anchor=(1.0, 0.9),
+                    ncols=1,
+                    fontsize=8,
+                    numpoints=1,
+                    bbox_transform=fig.transFigure,
+                    borderaxespad=0.0,
+                )
 
+        # Set optional "Weighted on" label
+        weight_alias = self.getFieldParameterAlias(Weight_Field, Input_Feature) 
+        if Weighted.value:
+            ax.text(
+                x=0.0,
+                y=0.0,
+                s=f'Weighted on:\n{weight_alias}',
+                fontsize=8,
+                transform=fig.transFigure,
+            )
 
-#----------------------------Adjusting radius labels---------------------------#
+        # Set optional "Number of Samples" label
+        nsamples_info = '\n'.join(
+            f'{k} = {v["n"]}' for k, v in sorted(statistics.items())
+        )
+        if Show_Num_Samples.value:
+            ax.text(
+                x=1.0,
+                y=0.0,
+                s=nsamples_info,
+                fontsize=8,
+                transform=fig.transFigure
+            )
 
-        radii = np.linspace(10**-10, max(barLengths, default=0), GRIDSPACE.value)          # in some mpl versions radii must be strictly positive values, therefore 10**-10 instead of 0
-        format_type = '%.2f'
-        if radii[1] <= 10**-3 or max(radii) >= 10**6:                           # radii[0] is always 0, then we check radii[1]
-            format_type = '%.2e'
+        # OUTPUT IMAGE AND LOG ------------------------------------------------
+        # Set output filepaths
+        if Save_Image.value:
+            image_outpath = Image_Output.valueAsText
+        else:
+            image_outpath = temp_filepath('RoseDiagram_temp.png')
 
-        ax.set_rgrids(radii = radii,
-                      fmt = format_type,
-                      angle = RGRIDS_ANGLE.value,
-                      weight = 'semibold',
-                      size = 10,
-                      color = 'white',
-                      path_effects = [mpe.withStroke(linewidth=2, foreground='k')])
+        root = path.splitext(image_outpath)[0]
+        log_outpath = f'{root}_LOG.txt'
+        xy_path = f'{root}_xy.txt'
 
-
-#-------Adding Weighted on, Legend and n.of Data Label to the plot-------#
-
-        if WEIGHTED.value:
-            ax.text(0.0, -0.1,
-                    u'Weighted on:\n{}'.format(WGT_FIELD.valueAsText),
-                    fontsize = 8,
-                    transform = ax.transAxes)
-
-
-        if SHOW_LEGEND.value == True:
-            from collections import OrderedDict
-            handles, labels = ax.get_legend_handles_labels()
-            by_label = OrderedDict(zip(labels, handles))
-
-            if len(by_label) > 0:
-                ax.legend(by_label.values(),
-                          by_label.keys(),
-                          loc = 'upper left',
-                          bbox_to_anchor = (1.0, 0.5, 0.5, 0.6),
-                          ncol = 1,
-                          fontsize = 8,
-                          numpoints = 1)
-
-
-        if SHOW_NSAMPLES.value == True:
-            txt4lbl = ''
-            for pt in sorted(proj_types):
-                pt_num = sum([D.count(pt) for D in data])
-                txt4lbl += pt + ' = ' + str(pt_num) + '\n'
-
-            ax.text(1.0, -0.1,
-                    txt4lbl,
-                    fontsize = 8,
-                    transform = ax.transAxes)
-
-
-
-#-------------------------------Write Log File---------------------------------#
-
-        if WRITE_LOG.value:
-            logPath = path.splitext(image_outpath)[0] + '_LOG.txt'
-
-            with io.open(logPath, 'w') as LOG:
-                LOG.write(title.upper() + '\n\n')
-
-                if SHOW_NSAMPLES.value == False:
-                    txt4lbl = ''
-                    for pt in sorted(proj_types):
-                        pt_num = sum([D.count(pt) for D in data])
-                        txt4lbl += pt + ' = ' + str(pt_num) + '\n'
-                LOG.write(txt4lbl + u'\n')
-
-                if WEIGHTED.value:
-                    LOG.write(u'Weighted on {}\n\n'.format(WGT_FIELD.valueAsText))
-
-                if len(stats_log) > 0:
-                    LOG.write(u'STATISTICS\n')
-                    for key, val in stats_log.items():
-                        avgs = '\t'.join(['{} deg'.format(i) for i in val[0::2]])
-                        R_means = '\t'.join([str(j) for j in val[1::2]])
-                        avg_desc = '{} mean vector(s) direction ->\t{}'.format(key, avgs)
-                        R_mean_desc = '{} mean resultant(s) length ->\t{}'.format(key, R_means)
-                        LOG.write(avg_desc + u'\n' + R_mean_desc + '\n\n')
-
-                LOG.write(u'\nLog file automatically compiled by ArcStereoNet')
-                LOG.close()
-
-
-
-#----------------------Save the figure and End the tool------------------------#
-
+        # Save figure
         fig.savefig(image_outpath, dpi='figure', bbox_inches='tight')
-        plt.close('all')
 
-        if STORE_IMG.value == False:
+        # Write log if required
+        if Write_Log.value:
+            with open(log_outpath, 'wt', encoding='utf-8') as log:
+                log.write(f'{title.upper()}\n\n')
+                log.write(f'{nsamples_info}\n\n')
+
+                log.write('OPTIONS\n')
+                # TODO add info on Mirrored plot
+                weighted_on = weight_alias if Weighted.value else '-'
+                log.write(f'Weighted on = {weighted_on}\n\n')
+
+                log.write('STATISTICS\n')
+                stast_availble = False
+                for i, stats in statistics.items():
+                    if not len(clust_stats := stats['clust'].values()):
+                        continue
+                    stast_availble = True
+                    avgs, r_means = zip(*(s for s in clust_stats))
+                    avgs, r_means = '\t'.join(avgs), '\t'.join(r_means)
+                    log.write(f'{i} mean vector(s) direction:\t{avgs}\n')
+                    log.write(f'{i} mean resultant(s) length:\t{r_means}\n\n')
+                if not stast_availble:
+                    log.write('None\n\n')
+
+                log.write(u'\nLog file automatically compiled by ArcStereoNet')
+
+        # Save centroid coordinates if image is not temporary     
+        if Save_Image.value:
+            coords = arcpy.da.FeatureClassToNumPyArray(
+                in_table=Input_Feature.valueAsText,
+                field_names='Shape'
+            )        
+            clon, clat = np.nanmean(coords, axis=0)[0]
+            descr = arcpy.Describe(Input_Feature.valueAsText)
+            with open(xy_path, 'w') as xyfile:
+                xyfile.write(f'{clon}\n')
+                xyfile.write(f'{clat}\n')
+                xyfile.write(f'{path.join(descr.path, descr.name)}\n')
+
+        # Auto-show image (and optionally log file) if image is temporary
+        else: # add a dedicated boolean parameter to enable auto-show?
             startfile(image_outpath)
-            if WRITE_LOG.value:
-                startfile(logPath)
-
-        elif OUTPUT_IMG.valueAsText.endswith('.png'):
-            xypath = path.splitext(OUTPUT_IMG.valueAsText)[0] + '_xy.txt'       # Saving centroid coordinates
-            clon, clat = centroid
-            descr = arcpy.Describe(IN_FEATURE.valueAsText)
-            with io.open(xypath, 'w') as xyfile:
-                xyfile.write(u'{}\n'.format(clon))
-                xyfile.write(u'{}\n'.format(clat))
-                xyfile.write(u'{}\n'.format(path.join(descr.path, descr.name)))
-
-
+            if Write_Log.value:
+                startfile(log_outpath)
 
         return
 
 
-
-
-################################################################################
-################################################################################
-################################################################################
-
-
-#- - - - - - - - - S   T   E   R   E   O   P   L   O   T   S - - - - - - - - - #
 
 class StereoPlots(_ToolBase):
 
