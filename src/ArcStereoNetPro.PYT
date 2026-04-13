@@ -960,23 +960,16 @@ class RoseDiagrams(_ToolBase):
         if (
             Mirrored.value and
             all(p.value is not None for p in parameters[0:4])
-        ):                             
-            spreads: dict[str, list[int | float]] = {}
+        ):
+            data = {d[0]: [] for d in Plot_Data.values}
             fields = (Azimuth_Field.valueAsText, Type_Field.valueAsText)
-            plotted = [v[0] for v in Plot_Data.values]
-            where = self.whereClause(Input_Feature, Type_Field, 'IN', plotted)
-            with arcpy.da.SearchCursor(
-                Input_Feature.value, fields, where) as curs:
-                for row in curs:
-                    azimuth, type_lbl = row[0], row[1]
-                    if type_lbl in spreads:
-                        spreads[type_lbl].append(azimuth)
-                    else:
-                        spreads[type_lbl] = [azimuth]
-
-            warns = [k for k, v in spreads.items() if self.hasObtuseSpread(v)]
+            w = self.whereClause(Input_Feature, Type_Field, 'IN', data.keys())
+            with arcpy.da.SearchCursor(Input_Feature.value, fields, w) as curs:
+                for azimuth, type_lbl in curs:
+                    data[type_lbl].append(azimuth % 360)
+            warns = [k for k, v in data.items() if self.hasObtuseSpread(v)]
             if len(warns):
-                msg = f'Azimuth data of {warns} spread more than 180 degrees.'
+                msg = f'Azimuth data of {warns} spreads more than 180 degrees.'
                 Mirrored.setWarningMessage(msg)
 
         # Weight Field parameter is required if Weighted option is checked                                                            
