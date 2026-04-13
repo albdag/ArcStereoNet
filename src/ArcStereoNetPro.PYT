@@ -12,7 +12,8 @@ from matplotlib.projections.polar import PolarAxes
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as mpe
 import numpy as np
-from typing import Any, Iterable, TypedDict
+from numpy.typing import ArrayLike
+from typing import Any, Iterable, Literal, TypedDict
 from os import path, startfile
 
 
@@ -246,7 +247,16 @@ def group_angles(angles, med_str, med_dip, tol_str, tol_dip):
     return grouped, excluded
 
 
-def angles_clustering(strikes, dips, measurement='poles', tol_str=0.5, tol_dip=0.3, n_clusts=None):
+def angles_clustering(
+        strikes: list,
+        dips: list,
+        measurement: Literal['lines', 'poles'] = 'poles',
+        tol_str: float = 0.5,
+        tol_dip: float = 0.3,
+        n_clusts: int | None = None
+    ):
+
+    # In the future modify function to work with numpy arrays?.
 
     if measurement == 'lines':
         strikes, dips = dips, strikes
@@ -606,18 +616,18 @@ class RoseDiagrams(_ToolBase):
         self.description = 'Use this tool to plot rose diagrams'
 
 
-    def hasObtuseSpread(self, angles: list[int | float]) -> bool:
+    def hasObtuseSpread(self, angles: ArrayLike) -> bool:
 
         """Check if the provided array of angles spreads more than 180 degrees.
 
         Args:
-            angles (list[int | float]): Angles in range [0, 360] degrees.
+            angles (ArrayLike): Angles in range [0, 360] degrees.
 
         Returns:
             bool: Whether the angles spread more than 180 degrees.
         """
 
-        array = np.unwrap(np.array(angles), period=360)
+        array = np.unwrap(np.asarray(angles), period=360)
         return array.max() - array.min() > 180
 
 
