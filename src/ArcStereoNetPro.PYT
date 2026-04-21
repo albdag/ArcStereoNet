@@ -1044,7 +1044,7 @@ class RoseDiagrams(_ToolBase):
         ax.set_theta_direction(-1)
         grid_format = np.arange(0, 360, Tick_Spacing.value)
         ax.set_thetagrids(grid_format, grid_format)
-        ax.grid(Show_Grid.value)
+        ax.grid(alpha=0.4 if Show_Grid.value else 0)
 
         # DATA PLOTTING -------------------------------------------------------
         # Parse oriented data
@@ -1137,8 +1137,7 @@ class RoseDiagrams(_ToolBase):
                             width=0.01,
                             facecolor=COLORS.get(_color),
                             edgecolor='black' if _color == 'Red' else 'red',
-                            linewidth=1.25,
-                            zorder=2
+                            linewidth=1.25
                         )
                         sign = -1
 
