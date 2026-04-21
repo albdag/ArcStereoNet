@@ -124,18 +124,6 @@ IMG_FORMATS = ['png', 'eps', 'pdf', 'pgf', 'ps', 'raw', 'rgba', 'svg', 'svgz']
 
 #- - - - - - - - - - - - U S E F U L  F U N C T I O N S - - - - - - - - - - - -#
 
-def is_module_available(name: str) -> bool:
-    """Check if a module is available in the current Python environment.
-
-    Args:
-        name (str): Module's name.
-
-    Returns:
-        bool: Whether the module is available.
-    """
-    return importlib.util.find_spec(name) is not None
-
-
 def temp_filepath(file_name: str) -> str:
     """Generate a temporary file path in the ArcGIS scratch folder.
 
@@ -397,7 +385,20 @@ class _ToolBase(object):
         self.description = 'Tool description.'
         self.canRunInBackground = False
 
-    
+
+    def isModuleAvailable(self, name: str) -> bool:
+        """Check if a module is available in the current Python environment.
+
+        Args:
+            name (str): Module's name.
+
+        Returns:
+            bool: Whether the module is available.
+        """
+
+        return importlib.util.find_spec(name) is not None
+
+
     def _getRawValueTable(self, parameter: arcpy.Parameter) -> list[list]:
 
         """Return raw values extracted from a ValueTable parameter. Raw values
@@ -1763,13 +1764,15 @@ class StereoPlots(_ToolBase):
         """The source code of the tool."""
 
         # Check for mplstereonet availability
-        if is_module_available('mplstereonet'):
+        if self.isModuleAvailable('mplstereonet'):
             import mplstereonet as msn
         else:
-            link = "https://github.com/albdag/ArcStereoNet/wiki/1.-Installation#installation-for-arcgis-pro"
-            error_msg = "You need 'mplstereonet' dependency to run this tool. "\
-                        f"For more info, check the installation guide at {link}"
-            messages.addErrorMessage(error_msg)
+            wiki_url = "https://github.com/albdag/ArcStereoNet/wiki"
+            installation_page = "1.-Installation#installation-for-arcgis-pro"
+            link = "/".join((wiki_url, installation_page))
+            msg = "You need 'mplstereonet' dependency to run this tool. For "\
+                  f"more info, check the installation guide at {link}"
+            messages.addErrorMessage(msg)
             return
 
 #---------------------------Parameters assignation-----------------------------#
