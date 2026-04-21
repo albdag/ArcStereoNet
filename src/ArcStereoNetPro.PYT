@@ -1445,9 +1445,9 @@ class StereoPlots(_ToolBase):
 		)
         param10.value = False
 
-        # PLOT TITLE (param11) ------------------------------------------------
+        # TITLE (param11) -----------------------------------------------------
         param11 = arcpy.Parameter(
-            name='plot_title',
+            name='title',
             displayName='Plot Title',
             direction='Input',
             datatype='GPString',
@@ -1495,7 +1495,7 @@ class StereoPlots(_ToolBase):
         # SHOW LEGEND (param15) -----------------------------------------------
         param15 = arcpy.Parameter(
             name='show_legend',
-            displayName='Show Legend',
+            displayName='Legend',
             direction='Input',
             datatype='GPBoolean',
 			parameterType='Optional',
@@ -1514,7 +1514,7 @@ class StereoPlots(_ToolBase):
 		)
         param16.value = True
 
-        # CONTOUR (param17) ---------------------------------------------------
+        # CONTOUR DATA (param17) ----------------------------------------------
         param17 = arcpy.Parameter(
             name='contour',
             displayName='Contour',
@@ -1555,7 +1555,7 @@ class StereoPlots(_ToolBase):
 		)
         param18.value = True
 
-        # MEAN VECTOR (param19) -----------------------------------------------
+        # MEAN VECTOR DATA (param19) ------------------------------------------
         param19 = arcpy.Parameter(
             name='mean_vector',
             displayName='Mean Vector(s)',
@@ -1756,12 +1756,14 @@ class StereoPlots(_ToolBase):
         return True
 
 
+    def execute(self, parameters: list[arcpy.Parameter], messages) -> None:
 
-#- - - - - - - - - - - - - T O O L  E X E C U T I O N - - - - - - - - - - - - -#
+        """The source code of the tool.
 
-    def execute(self, parameters: list[arcpy.Parameter], messages):
-
-        """The source code of the tool."""
+        Args:
+            parameters (list[arcpy.Parameter]): Tool's parameters.
+            messages: Tool's messages.
+        """
 
         # Check for mplstereonet availability
         if self.isModuleAvailable('mplstereonet'):
@@ -1775,42 +1777,40 @@ class StereoPlots(_ToolBase):
             messages.addErrorMessage(msg)
             return
 
-#---------------------------Parameters assignation-----------------------------#
-
-        IN_FEATURE = parameters[0]
-        AZM_FIELD = parameters[1]
-        DIP_FIELD = parameters[2]
-        MET_FIELD = parameters[3]
-        TYPE_FIELD = parameters[4]
-        PLOT_DATA = parameters[5]
-        STORE_IMG = parameters[6]
-        OUTPUT_IMG = parameters[7]
-        IMG_DPI = parameters[8]
-        NET_TYPE = parameters[9]
-        WRITE_LOG = parameters[10]
-        TITLE = parameters[11]
-        N_TICKS = parameters[12]
-        TICKS_TYPE = parameters[13]
-        SHOW_GRID = parameters[14]
-        SHOW_LEGEND = parameters[15]
-        SHOW_NSAMPLES = parameters[16]
-        CONTOUR = parameters[17]
-        SHOW_COLORBAR = parameters[18]
-        EXTRACT_MEANS = parameters[19]
-        TRACK_MEAD = parameters[20]
-
+        # Get parameters
+        Input_Feature = parameters[0]
+        Azimuth_Field = parameters[1]
+        Dip_Field = parameters[2]
+        Method_Field = parameters[3]
+        Type_Field = parameters[4]
+        Plot_Data = parameters[5]
+        Save_Image = parameters[6]
+        Image_Output = parameters[7]
+        Image_Dpi = parameters[8]
+        Net_Type = parameters[9]
+        Write_Log = parameters[10]
+        Title = parameters[11]
+        Num_Ticks = parameters[12]
+        Ticks_Format = parameters[13]
+        Show_Grid = parameters[14]
+        Show_Legend = parameters[15]
+        Show_Num_Samples = parameters[16]
+        Contour_Data = parameters[17]
+        Show_Colorbar = parameters[18]
+        Mean_Vector_Data = parameters[19]
+        Track_Mead = parameters[20]
 
 
 #-------------------------------Importing Data---------------------------------#
 
-        fields_params = (AZM_FIELD, DIP_FIELD, MET_FIELD, TYPE_FIELD)
+        fields_params = (Azimuth_Field, Dip_Field, Method_Field, Type_Field)
         fields = tuple(fp.valueAsText for fp in fields_params)                  # Supported field names, later referred as: [0],[1],[2],[3]
-        source = IN_FEATURE.valueAsText
+        source = Input_Feature.valueAsText
         data_array = arcpy.da.FeatureClassToNumPyArray(source, fields,
                                                        null_value='')
         data = data_array.tolist()
 
-        if STORE_IMG.value:
+        if Save_Image.value:
             coords = arcpy.da.FeatureClassToNumPyArray(source, 'Shape')         # Extracting centroid coordinates
             centroid = np.nanmean(coords.tolist(), axis=0)[0]
 
@@ -1818,8 +1818,8 @@ class StereoPlots(_ToolBase):
 #-------------------------Pre-Elaboration of Data------------------------------#
 
         # Determine image output filepath
-        if STORE_IMG.value:
-            image_outpath = OUTPUT_IMG.valueAsText
+        if Save_Image.value:
+            image_outpath = Image_Output.valueAsText
         else:
             image_outpath = temp_filepath('Stereoplot_temp.png')
 
@@ -1842,7 +1842,7 @@ class StereoPlots(_ToolBase):
 
         proj_types = set()
 
-        if WRITE_LOG.value:
+        if Write_Log.value:
             contour_stats = []
             stats_log = {}
             fisher_stats = {}
@@ -1857,30 +1857,30 @@ class StereoPlots(_ToolBase):
 
 #-----------------------Initialization of MPLStereonet-------------------------#
         # Initialize plot
-        fig = Figure(figsize=(6, 6), dpi=IMG_DPI.value)
-        if NET_TYPE.valueAsText == 'Wulff (Equal Angle)':
+        fig = Figure(figsize=(6, 6), dpi=Image_Dpi.value)
+        if Net_Type.valueAsText == 'Wulff (Equal Angle)':
             ax = msn.stereonet_axes.EqualAngleAxes(fig, 111)
         else:
             ax = msn.stereonet_axes.EqualAreaAxes(fig, 111)
         fig.add_subplot(ax)
 
         # Set title
-        title = TITLE.valueAsText if TITLE.value else IN_FEATURE.valueAsText
+        title = Title.valueAsText if Title.value else Input_Feature.valueAsText
         ax.set_title(title, y=1.1, fontsize=18)
 
         # Set grid and ticks
-        ax.grid(SHOW_GRID.value)
+        ax.grid(Show_Grid.value)
         ax.set_azimuth_ticks(np.linspace(0, 360, N_TICKS.value, False))
-        if (n := N_TICKS.value) > 0:
-            ticklabels = COMPASS_LABELS[TICKS_TYPE.valueAsText]
+        if (n := Num_Ticks.value) > 0:
+            ticklabels = COMPASS_LABELS[Ticks_Format.valueAsText]
             ax.set_azimuth_ticklabels(ticklabels[::8//n])
 
 #-----------------------Plotting of selected data------------------------------#
 
 #>>> PLOTTING DATA Value Table <<<
 
-        if PLOT_DATA.values != None:
-            for row in PLOT_DATA.values:
+        if Plot_Data.values != None:
+            for row in Plot_Data.values:
                 _type, _color, _marker, _mSize, _line, _lWidth = row
 
                 if _color == 'Random':                                          # Select a random color if not specified by the user
@@ -1928,8 +1928,8 @@ class StereoPlots(_ToolBase):
 
 #>>> CONTOUR Value Table <<<
 
-        if CONTOUR.values != None:
-            for row in CONTOUR.values:
+        if Contour_Data.values != None:
+            for row in Contour_Data.values:
                 _type, _method, _sigma, _style, _color, _alpha = row
 
                 if _color == 'Random':                                          # Select a random color map if not specified by the user
@@ -1978,15 +1978,15 @@ class StereoPlots(_ToolBase):
                                               alpha = _alpha)
 
 
-                if WRITE_LOG.value:
+                if Write_Log.value:
                     contour_stats = [_type, _method, _sigma]
 
 
 
 #>>> EXTRACT MEAN VECTORS Value Table <<<
 
-        if EXTRACT_MEANS.values != None:
-            for row in EXTRACT_MEANS.values:
+        if Mean_Vector_Data.values != None:
+            for row in Mean_Vector_Data.values:
                 _type, _algorithm, _nClusts, _azmTol, _dipTol, _conf = row[:6]
                 _color, _marker, _mSize, _line, _lWidth = row[6:]
 
@@ -2027,7 +2027,7 @@ class StereoPlots(_ToolBase):
 
 
 
-                else:                                                           # Extract M.E.A.D. clusters
+                else:                                                           # Extract MEAD clusters
 
                     _azmTol, _dipTol = _azmTol / 100., _dipTol / 100.
 
@@ -2041,7 +2041,7 @@ class StereoPlots(_ToolBase):
                         azm.append(fam[0])
                         inc.append(fam[1])
 
-                        if TRACK_MEAD.value:                                    # Track M.E.A.D. clustering process behaviour if required
+                        if Track_Mead.value:                                    # Track MEAD clustering process behaviour if required
                             num_mark = '${}$'.format(mead_clust.index(mc) + 1)
                             if apply_on == 'poles':
                                 ax.pole(fam[0],
@@ -2097,14 +2097,14 @@ class StereoPlots(_ToolBase):
                                                             ms = 10,
                                                             mew = _lWidth)
 
-                            if WRITE_LOG.value:
+                            if Write_Log.value:
                                 if _type not in fisher_stats:
                                     fisher_stats[_type] = stats
                                 else:
                                     fisher_stats[_type] += stats
 
 
-                        else:                                                   # Extract M.E.A.D. mean vector(s)
+                        else:                                                   # Extract MEAD mean vector(s)
 
                             c_azm, _ = avg_angle(azm[i])
                             c_inc = sum(inc[i]) / len(inc[i])
@@ -2119,7 +2119,7 @@ class StereoPlots(_ToolBase):
 
                 for n in range(len(c1)):
 
-                    if WRITE_LOG.value:
+                    if Write_Log.value:
                         if apply_on == 'poles' or _algorithm == 'Bingham':
                             mean = (c1[n], c2[n])
                         else:
@@ -2169,7 +2169,7 @@ class StereoPlots(_ToolBase):
 
 #----Adding Legend, n.of Data label & Colorbar to the plot---#
 
-        if SHOW_LEGEND.value == True:
+        if Show_Legend.value == True:
             from collections import OrderedDict
             handles, labels = ax.get_legend_handles_labels()
             for lbl, hnd in fisher_cones.items():
@@ -2187,7 +2187,7 @@ class StereoPlots(_ToolBase):
                           numpoints = 1)
 
 
-        if SHOW_NSAMPLES.value == True:
+        if Show_Num_Samples.value == True:
             txt4lbl = ''
             for pt in sorted(proj_types):
                 pt_num = sum([FD.count(pt) for FD in fixed_data])
@@ -2198,7 +2198,7 @@ class StereoPlots(_ToolBase):
                     transform = ax.transAxes)
 
 
-        if SHOW_COLORBAR.value == True:
+        if Show_Colorbar.value == True:
             cbax = fig.add_axes((-0.2, 0.1, 0.03, 0.8))                       # left, bottom, width, height
             try:
                 fig.colorbar(fdcf, cax=cbax)
@@ -2213,13 +2213,13 @@ class StereoPlots(_ToolBase):
 
 #-------------------------------Write Log File---------------------------------#
 
-        if WRITE_LOG.value:
+        if Write_Log.value:
             logPath = path.splitext(image_outpath)[0] + '_LOG.txt'
 
             with io.open(logPath, 'w') as LOG:
                 LOG.write(title.upper() + '\n\n')
 
-                if SHOW_NSAMPLES.value == False:
+                if Show_Num_Samples.value == False:
                     txt4lbl = ''
                     for pt in sorted(proj_types):
                         pt_num = sum([FD.count(pt) for FD in fixed_data])
@@ -2276,15 +2276,15 @@ class StereoPlots(_ToolBase):
         fig.savefig(image_outpath, dpi='figure', bbox_inches='tight')
         plt.close('all')
 
-        if STORE_IMG.value == False:
+        if Save_Image.value == False:
             startfile(image_outpath)
-            if WRITE_LOG.value:
+            if Write_Log.value:
                 startfile(logPath)
 
         elif image_outpath.endswith('.png'):
             xypath = path.splitext(image_outpath)[0] + '_xy.txt'       # Saving centroid coordinates
             clon, clat = centroid
-            descr = arcpy.Describe(IN_FEATURE.valueAsText)
+            descr = arcpy.Describe(Input_Feature.valueAsText)
             with io.open(xypath, 'w') as xyfile:
                 xyfile.write(u'{}\n'.format(clon))
                 xyfile.write(u'{}\n'.format(clat))
