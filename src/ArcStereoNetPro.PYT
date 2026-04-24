@@ -306,11 +306,27 @@ def angles_clustering(
     return families                                                             # "return families, spurious" to also obtain spurious values list
 
 
+class MeanVectorStats(TypedDict):
+    # Algorithm name
+    algorithm: Literal['MEAD', 'MEAD+Fisher', 'K-means', 'Bingham']
+    # Mean azimuth and dip (or azimuth and R mean) values per cluster id
+    vectors: dict[str, tuple[str, str]]
+    # Fisher statistics (R value, Fisher angle, K value) per cluster id
+    fisher_stats: dict[str, tuple[str, str, str]] | None
+    # MEAD azimuth and dip tolerance values
+    tol: tuple[float, float] | None
+    # Fisher confidence
+    conf: float | None
 
 class StatItem(TypedDict):
+    # Number of samples
     n: int
-    clust: dict[str, tuple[str, str]]
-Statistics = dict[str, StatItem]
+    # Kind of oriented data
+    kind: Literal['lines', 'planes']
+    # Contour data = list of (method, st_dev)
+    contour: list[tuple[str, float]]
+    # Clustering data = list of MeanVectorStats
+    clustering: list[MeanVectorStats]
 
 
 
@@ -1008,7 +1024,7 @@ class RoseDiagrams(_ToolBase):
         """
 
         # Intialize statistics dictionary
-        statistics: Statistics = {}
+        statistics: dict[str, StatItem] = {}
 
         # Get parameters
         Input_Feature = parameters[0]
@@ -1107,8 +1123,17 @@ class RoseDiagrams(_ToolBase):
             )
 
             # Compute mean vector(s) if required
-            cluster_stats: dict[str, tuple[str, str]] = {}
+            clustering_stats: list[MeanVectorStats] = []
             if _mean_vect == 'YES':
+
+                # Initialize MEAD statistics
+                mead_stats: MeanVectorStats = {
+                    "algorithm": "MEAD",
+                    "vectors": {},
+                    "fisher_stats": None,
+                    "tol": (_azm_tol, 1),
+                    "conf": None
+                }
                 
                 # Treat weights as dips data and set the dip tolerance to 100%
                 # so that the output couples will be (azimuth-weight) and the
@@ -1142,17 +1167,21 @@ class RoseDiagrams(_ToolBase):
                         )
                         sign = -1
 
-                    # Update cluster statistics
+                    # Update MEAD statistics
                     stat1, stat2 = f'{avg_deg}°', str(round(r_mean, 3))
                     if Mirrored.value:
                         stat1 += f' ({(avg_deg + 180) % 360}°)'
-                    cluster_stats[str(i)] = (stat1, stat2)
-                    
+                    mead_stats["vectors"][str(i)] = (stat1, stat2)
 
-            # Populate statistic for _type data
-            statistics[type_label] = {
+                # Add MEAD statistics to clustering statistics
+                clustering_stats.append(mead_stats)
+
+            # Populate overall statistics for _type data
+            statistics[type_lbl] = {
                 "n": len(azimuth),
-                "clust": cluster_stats
+                "kind": "lines",
+                "contour": [],
+                "clustering": clustering_stats
             }
 
         # PLOT FINALIZATION ---------------------------------------------------
@@ -1236,16 +1265,17 @@ class RoseDiagrams(_ToolBase):
                 log.write(f'Weighted on = {weighted_on}\n\n')
 
                 log.write('STATISTICS\n')
-                stast_availble = False
+                clust_stast_available = False
                 for i, stats in statistics.items():
-                    if not len(clust_stats := stats['clust'].values()):
+                    if not len(clust_stats := stats['clustering']):
                         continue
-                    stast_availble = True
-                    avgs, r_means = zip(*(s for s in clust_stats))
+                    clust_stast_available = True
+                    mean_vect = [mv['vectors'].values() for mv in clust_stats]
+                    avgs, r_means = zip(*(v for v in mean_vect))
                     avgs, r_means = '\t'.join(avgs), '\t'.join(r_means)
                     log.write(f'{i} mean vector(s) direction:\t{avgs}\n')
                     log.write(f'{i} mean resultant(s) length:\t{r_means}\n\n')
-                if not stast_availble:
+                if not clust_stast_available:
                     log.write('None\n\n')
 
                 log.write(u'\nLog file automatically compiled by ArcStereoNet')
