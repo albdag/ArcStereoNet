@@ -15,7 +15,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 from typing import Any, Iterable, Literal, TypedDict
 from os import path, startfile
-
+from datetime import datetime
 
 #-----------------------------Environment Settings----------------------------#
 # Prevent adding output image to Contents pane
@@ -308,11 +308,13 @@ def angles_clustering(
 
 class MeanVectorStats(TypedDict):
     # Algorithm name
-    algorithm: Literal['MEAD', 'MEAD+Fisher', 'K-means', 'Bingham']
-    # Mean azimuth and dip (or azimuth and R mean) values per cluster id
-    vectors: dict[str, tuple[str, str]]
-    # Fisher statistics (R value, Fisher angle, K value) per cluster id
-    fisher_stats: dict[str, tuple[str, str, str]] | None
+    algorithm: Literal["MEAD", "MEAD+Fisher", "K-means", "Bingham"]
+    # Mean azimuth and dip values per cluster id
+    vectors: dict[str, tuple[float, float]]
+    # Mean resultant lengths per cluster id
+    r_means: dict[str, float]
+    # Fisher statistics (R value, confidence radius, kappa) per cluster id
+    fisher_stats: dict[str, tuple[float, float, float]]
     # MEAD azimuth and dip tolerance values
     tol: tuple[float, float] | None
     # Fisher confidence
@@ -322,11 +324,261 @@ class StatItem(TypedDict):
     # Number of samples
     n: int
     # Kind of oriented data
-    kind: Literal['lines', 'planes']
+    kind: Literal["lines", "planes"]
     # Contour data = list of (method, st_dev)
     contour: list[tuple[str, float]]
     # Clustering data = list of MeanVectorStats
     clustering: list[MeanVectorStats]
+
+
+
+class StatsLogger():
+
+    def __init__(
+        self,
+        stats_dict: dict[str, StatItem],
+        kind: Literal["RoseDiagrams", "StereoPlots"]
+    ) -> None:
+
+        """Helper class for generating log files from statistics.
+
+        Args:
+            stats_dict (dict[str, StatItem]): Dictionary containing statistics.
+            kind (Literal["RoseDiagrams", "StereoPlots"]): Requesting tool.
+        """
+    
+        self.stats = stats_dict
+        self.kind = kind
+
+
+    @staticmethod
+    def paragraph(text: str) -> str:
+
+        """Wrap 'text' in a paragraph.
+
+        Args:
+            text (str): Text to wrap in paragraph.
+
+        Returns:
+            str: Text as paragraph.
+        """
+
+        return f'{text}\n\n'
+    
+
+    @staticmethod
+    def head(text: str) -> str:
+
+        """Wrap 'text' in a stylish frame ideal for a section's heading.
+
+        Args:
+            text (str): Text to wrap in frame.
+
+        Returns:
+            heading (str): Text as heading.
+        """
+
+        hline = '-' * (len(text) + 4)
+        heading = f'{hline}\n| {text} |\n{hline}'
+        return heading
+
+
+    def custom(self, text_list: Iterable[str], parag: bool = True) -> str:
+
+        """Create new log text from a list of custom texts.
+
+        Args:
+            text_list (Iterable[str]): List of texts to merge.
+            parag (bool, optional): Wrap text in paragraph. Defaults to True.
+
+        Returns:
+            str: Custom log text.
+        """
+
+        t = '\n'.join(text_list)
+        return self.paragraph(t) if parag else t
+    
+
+    def toolName(self, parag: bool = True) -> str:
+
+        """Generate formatted log text with tool name.
+
+        Args:
+            parag (bool, optional): Wrap text in paragraph. Defaults to True.
+
+        Returns:
+            str: Log text with tool name.
+        """
+
+        t = f'Tool: {self.kind}'
+        return self.paragraph(t) if parag else t
+    
+
+    def dateTime(self, parag: bool = True) -> str:
+
+        """Generate formatted log text with datetime info.
+
+        Args:
+            parag (bool, optional): Wrap text in paragraph. Defaults to True.
+
+        Returns:
+            str: Log text with datetime.
+        """
+
+        t = f'Datetime: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+        return self.paragraph(t) if parag else t
+            
+
+    def samples(self, parag: bool = True) -> str:
+
+        """Generate formatted log text with number of plotted samples per data
+        type.
+
+        Args:
+            parag (bool, optional): Wrap text in paragraph. Defaults to True.
+
+        Returns:
+            str: Log text with number of samples.
+        """
+
+        t = '\n'.join(f'{k}: {v["n"]}' for k, v in sorted(self.stats.items()))
+        return self.paragraph(t) if parag else t
+    
+
+    def contour(self, parag: bool = False) -> str:
+
+        """Generate formatted log text with contour statistics per data type.
+
+        Args:
+            parag (bool, optional): Wrap text in paragraph. Defaults to False.
+
+        Returns:
+            str: Log text with contour statistics.
+        """
+
+        tlist = [self.head('CONTOUR STATISTICS')]
+        for type_, stats in sorted(self.stats.items()):
+            # Type
+            tlist.append(type_)
+            
+            # Method and standard deviation
+            for cont in stats["contour"]:
+                method = f'Contour method: {cont[0]}'
+                sigma = f'Std. deviation: {cont[1]}'
+                tlist.append(f'\t{method}, {sigma}')
+
+            # Force extra spacing
+            tlist.append('')
+        
+        t = '\n'.join(tlist[:-1]) # exclude last extra spacing element
+        return self.paragraph(t) if parag else t
+        
+
+    def clustering(self, mirrored: bool = False, parag: bool = True) -> str:
+
+        """Generate formatted log text with clustering and mean vector
+        statistics per data type.
+
+        Args:
+            mirrored (bool, optional): Whether Mirrored option in RoseDiagrams
+                tool is active. This parameter is ignored if 'self.kind' is not
+                "RoseDiagrams". Defaults to False.
+            parag (bool, optional): Wrap text in paragraph. Defaults to True.
+
+        Returns:
+            str: Log text with clustering and mean vector statistics.
+        """
+
+        tlist = [self.head('MEAN VECTORS STATISTICS')]
+        clust_stast_available = False
+        for type_, stats in sorted(self.stats.items()): 
+            
+            # Skip statistics if not populated
+            if not len(clustering_stats := stats["clustering"]):
+                continue
+            
+            clust_stast_available = True
+            for mvs in clustering_stats:
+                # Type
+                tlist.append(type_) 
+                
+                # Algorithm
+                algm = mvs["algorithm"]
+                desc = 'best fit plane' if algm == 'Bingham' else 'mean(s)'
+                tlist.append(f'- Algorithm: {algm} {desc}')
+
+                # Tolerance (only for MEAD and MEAD+Fisher)
+                if tol := mvs["tol"]:
+                    atol = f'{tol[0]}% (Azimuth)'
+                    dtol = '' if np.isnan(tol[1]) else f'{tol[1]}% (Dip)'
+                    tlist.append(f'- MEAD tolerance: {atol} {dtol}'.rstrip())
+
+                # Fisher confidence (only for MEAD+Fisher)
+                if conf := mvs["conf"]:
+                    tlist.append(f'- Fisher confidence: {conf}%')
+
+                # Mean vectors
+                azms, dips = zip(*mvs["vectors"].values())
+                if self.kind == "StereoPlots":
+                    vect = '\t'.join(f'{a}/{d}' for a, d in zip(azms, dips))
+                elif mirrored:
+                    vect = '\t'.join(f'{a} ({(a + 180) % 360})°' for a in azms)
+                else:
+                    vect = '\t'.join(f'{a}°' for a in azms)
+                tlist.append(f'- Estimated mean vector(s) data: {vect}')
+
+                # R means (only for MEAD and MEAD+Fisher)
+                r_means = '\t'.join(str(v) for v in mvs["r_means"].values())
+                if len(r_means):
+                    tlist.append(f'- MEAD mean resultant length(s): {r_means}')
+
+                # Fisher stats (only for MEAD+Fisher)
+                if len(fisher_stats := mvs["fisher_stats"]):
+                    r_value, c_radius, kappa = zip(*fisher_stats.values())
+                    s1 = 'Magnitude of mean vector(s): ' + '\t'.join(r_value)
+                    s2 = 'Confidence radius (degrees): ' + '\t'.join(c_radius)
+                    s3 = 'Vector(s) dispersion factor: ' + '\t'.join(kappa)
+                    fstats = '\n  - '.join((s1, s2, s3))
+                    tlist.append(f'- Fisher statistics:\n{fstats}')
+                
+                # Force extra spacing
+                tlist.append('')
+
+        if not clust_stast_available:
+            return ''
+        
+        t = '\n'.join(tlist[:-1]) # exclude last extra spacing element
+        return self.paragraph(t) if parag else t
+    
+
+    def extraInfo(self, parag: bool = True) -> str:
+
+        """Generate formatted log text with extra info, such as tool name, tool
+        execution datetime and mean vector notations.
+
+        Args:
+            parag (bool, optional): Wrap text in paragraph. Defaults to True.
+
+        Returns:
+            str: Log text with extra info.
+        """
+
+        tlist = [
+            self.head('EXTRA INFO'),
+            self.toolName(parag=False),
+            self.dateTime(parag=False),
+            'Log file automatically compiled by ArcStereoNet'
+        ]
+        # Add mean vectors notation only for StereoPlots tool
+        if self.kind == "StereoPlots":
+            notation = (
+                'Mean vectors are expressed as strike/dip for planar data '\
+                'and trend/plunge for linear data.'
+            )
+            tlist.insert(-1, notation)
+
+        t = '\n'.join(tlist)
+        return self.paragraph(t) if parag else t
 
 
 
@@ -1130,8 +1382,9 @@ class RoseDiagrams(_ToolBase):
                 mead_stats: MeanVectorStats = {
                     "algorithm": "MEAD",
                     "vectors": {},
-                    "fisher_stats": None,
-                    "tol": (_azm_tol, 1),
+                    "r_means": {},
+                    "fisher_stats": {},
+                    "tol": (_azm_tol, np.nan),
                     "conf": None
                 }
                 
@@ -1167,11 +1420,9 @@ class RoseDiagrams(_ToolBase):
                         )
                         sign = -1
 
-                    # Update MEAD statistics
-                    stat1, stat2 = f'{avg_deg}°', str(round(r_mean, 3))
-                    if Mirrored.value:
-                        stat1 += f' ({(avg_deg + 180) % 360}°)'
-                    mead_stats["vectors"][str(i)] = (stat1, stat2)
+                    # Update MEAD statistics for i-th cluster 
+                    mead_stats["vectors"][str(i)] = (avg_deg, np.nan)
+                    mead_stats["r_means"][str(i)] = round(r_mean, 3)
 
                 # Add MEAD statistics to clustering statistics
                 clustering_stats.append(mead_stats)
@@ -1227,14 +1478,12 @@ class RoseDiagrams(_ToolBase):
             )
 
         # Set optional "Number of Samples" label
-        nsamples_info = '\n'.join(
-            f'{k} = {v["n"]}' for k, v in sorted(statistics.items())
-        )
+        n_samp = StatsLogger(statistics, "RoseDiagrams").samples(parag=False)
         if Show_Num_Samples.value:
             ax.text(
                 x=1.0,
                 y=0.0,
-                s=nsamples_info,
+                s=n_samp,
                 fontsize=8,
                 transform=fig.transFigure
             )
@@ -1255,30 +1504,20 @@ class RoseDiagrams(_ToolBase):
 
         # Write log if required
         if Write_Log.value:
+            logger = StatsLogger(statistics, "RoseDiagrams")
             with open(log_outpath, 'wt', encoding='utf-8') as log:
-                log.write(f'{title.upper()}\n\n')
-                log.write(f'{nsamples_info}\n\n')
-
-                log.write('OPTIONS\n')
-                # TODO add info on Mirrored plot
-                weighted_on = weight_alias if Weighted.value else '-'
-                log.write(f'Weighted on = {weighted_on}\n\n')
-
-                log.write('STATISTICS\n')
-                clust_stast_available = False
-                for i, stats in statistics.items():
-                    if not len(clust_stats := stats['clustering']):
-                        continue
-                    clust_stast_available = True
-                    mean_vect = [mv['vectors'].values() for mv in clust_stats]
-                    avgs, r_means = zip(*(v for v in mean_vect))
-                    avgs, r_means = '\t'.join(avgs), '\t'.join(r_means)
-                    log.write(f'{i} mean vector(s) direction:\t{avgs}\n')
-                    log.write(f'{i} mean resultant(s) length:\t{r_means}\n\n')
-                if not clust_stast_available:
-                    log.write('None\n\n')
-
-                log.write(u'\nLog file automatically compiled by ArcStereoNet')
+                # Title and number of samples
+                log.write(logger.paragraph(title.upper()))
+                log.write(logger.paragraph(n_samp))
+                # Plot options
+                opt = [logger.head('OPTIONS'), f'Mirrored: {Mirrored.value}']
+                if Weighted.value:
+                    opt.append((f'Weighted on: {weight_alias}'))
+                log.write(logger.custom(opt))
+                # Clustering statistics
+                log.write(logger.clustering(mirrored=Mirrored.value))
+                # Extra info (tool name, datetime)
+                log.write(logger.extraInfo(parag=False))
 
         # Save centroid coordinates if image is not temporary     
         if Save_Image.value:
