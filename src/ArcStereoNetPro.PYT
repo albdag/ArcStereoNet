@@ -445,12 +445,12 @@ class StatsLogger():
         return self.paragraph(t) if parag else t
     
 
-    def contour(self, parag: bool = False) -> str:
+    def contour(self, parag: bool = True) -> str:
 
         """Generate formatted log text with contour statistics per data type.
 
         Args:
-            parag (bool, optional): Wrap text in paragraph. Defaults to False.
+            parag (bool, optional): Wrap text in paragraph. Defaults to True.
 
         Returns:
             str: Log text with contour statistics.
