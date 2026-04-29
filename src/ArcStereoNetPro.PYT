@@ -459,20 +459,21 @@ class StatsLogger():
         tlist = [self.head('CONTOUR STATISTICS')]
         contour_stats_available = False
         for type_, stats in sorted(self.stats.items()):
-            
+
             for cont in stats["contour"]:
                 contour_stats_available = True
 
                 # Type
                 tlist.append(type_)
 
-                # Method and standard deviation
-                method = f'Contour method: {cont[0]}'
-                sigma = f'Std. deviation: {cont[1]}'
-                tlist.append(f'\t{method}, {sigma}')
+                # Method 
+                tlist.append(f'- Contour method: {cont[0]}')
 
-            # Force extra spacing
-            tlist.append('')
+                # Standard deviation
+                tlist.append(f'- Std. deviation: {cont[1]}')
+
+                # Force extra spacing
+                tlist.append('')
 
         if not contour_stats_available:
             return ''
