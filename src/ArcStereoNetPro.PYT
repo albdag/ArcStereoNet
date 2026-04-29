@@ -457,18 +457,25 @@ class StatsLogger():
         """
 
         tlist = [self.head('CONTOUR STATISTICS')]
+        contour_stats_available = False
         for type_, stats in sorted(self.stats.items()):
-            # Type
-            tlist.append(type_)
             
-            # Method and standard deviation
             for cont in stats["contour"]:
+                contour_stats_available = True
+
+                # Type
+                tlist.append(type_)
+
+                # Method and standard deviation
                 method = f'Contour method: {cont[0]}'
                 sigma = f'Std. deviation: {cont[1]}'
                 tlist.append(f'\t{method}, {sigma}')
 
             # Force extra spacing
             tlist.append('')
+
+        if not contour_stats_available:
+            return ''
         
         t = '\n'.join(tlist[:-1]) # exclude last extra spacing element
         return self.paragraph(t) if parag else t
@@ -492,13 +499,10 @@ class StatsLogger():
         tlist = [self.head('MEAN VECTORS STATISTICS')]
         clust_stast_available = False
         for type_, stats in sorted(self.stats.items()): 
-            
-            # Skip statistics if not populated
-            if not len(clustering_stats := stats["clustering"]):
-                continue
-            
-            clust_stast_available = True
-            for mvs in clustering_stats:
+        
+            for mvs in stats["clustering"]:
+                clust_stast_available = True
+
                 # Type
                 tlist.append(type_) 
                 
@@ -507,20 +511,21 @@ class StatsLogger():
                 desc = 'best fit plane' if algm == 'Bingham' else 'mean(s)'
                 tlist.append(f'- Algorithm: {algm} {desc}')
 
-                # Tolerance (only for MEAD and MEAD+Fisher)
-                if tol := mvs["tol"]:
-                    atol = f'{tol[0]}% (Azimuth)'
-                    dtol = '' if np.isnan(tol[1]) else f'{tol[1]}% (Dip)'
-                    tlist.append(f'- MEAD tolerance: {atol} {dtol}'.rstrip())
+                # MEAD tolerance (only for MEAD and MEAD+Fisher algorithms)
+                if (tol := mvs["tol"]) is not None:
+                    atol, itol = tol
+                    atol = f'{atol}% (Azimuth)'
+                    itol = '' if np.isnan(itol) else f'{itol}% (Inclination)'
+                    tlist.append(f'- MEAD tolerance: {atol} {itol}'.rstrip())
 
-                # Fisher confidence (only for MEAD+Fisher)
-                if conf := mvs["conf"]:
+                # Fisher confidence (only for MEAD+Fisher algorithm)
+                if (conf := mvs["conf"]) is not None:
                     tlist.append(f'- Fisher confidence: {conf}%')
 
                 # Mean vectors
-                azms, dips = zip(*mvs["vectors"].values())
+                azms, incl = zip(*mvs["vectors"].values())
                 if self.kind == "StereoPlots":
-                    vect = '\t'.join(f'{a}/{d}' for a, d in zip(azms, dips))
+                    vect = '\t'.join(f'{a}/{i}' for a, i in zip(azms, incl))
                 elif mirrored:
                     vect = '\t'.join(f'{a} ({(a + 180) % 360})°' for a in azms)
                 else:
