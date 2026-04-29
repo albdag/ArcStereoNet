@@ -540,11 +540,13 @@ class StatsLogger():
 
                 # Fisher stats (only for MEAD+Fisher)
                 if len(fisher_stats := mvs["fisher_stats"]):
-                    r_value, c_radius, kappa = zip(*fisher_stats.values())
-                    s1 = 'Magnitude of mean vector(s): ' + '\t'.join(r_value)
-                    s2 = 'Confidence radius (degrees): ' + '\t'.join(c_radius)
-                    s3 = 'Vector(s) dispersion factor: ' + '\t'.join(kappa)
-                    fstats = '\n  - '.join((s1, s2, s3))
+                    r_val, angle, kappa = (
+                        tuple(map(str, x)) for x in zip(*fisher_stats.values())
+                    )
+                    s1 = '  - Magnitude of mean vector(s): ' + '\t'.join(r_val)
+                    s2 = '  - Confidence radius (degrees): ' + '\t'.join(angle)
+                    s3 = '  - Vector(s) dispersion factor: ' + '\t'.join(kappa)
+                    fstats = '\n'.join((s1, s2, s3))
                     tlist.append(f'- Fisher statistics:\n{fstats}')
                 
                 # Force extra spacing
