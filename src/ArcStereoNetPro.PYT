@@ -509,8 +509,8 @@ class StatsLogger():
                 
                 # Algorithm
                 algm = mvs["algorithm"]
-                desc = 'best fit plane' if algm == 'Bingham' else 'mean(s)'
-                tlist.append(f'- Algorithm: {algm} {desc}')
+                desc = 'best fit plane' if algm == 'Bingham' else 'clustering'
+                tlist.append(f'- Statistic: {algm} {desc}')
 
                 # MEAD tolerance (only for MEAD and MEAD+Fisher algorithms)
                 if (tol := mvs["tol"]) is not None:
@@ -525,6 +525,9 @@ class StatsLogger():
 
                 # Mean vectors
                 azms, incl = zip(*mvs["vectors"].values())
+                azms = np.rint(azms).astype(int)
+                incl = np.rint(incl).astype(int)
+                
                 if self.kind == "StereoPlots":
                     vect = '\t'.join(f'{a}/{i}' for a, i in zip(azms, incl))
                 elif mirrored:
@@ -534,18 +537,24 @@ class StatsLogger():
                 tlist.append(f'- Estimated mean vector(s) data: {vect}')
 
                 # R means (only for MEAD and MEAD+Fisher)
-                r_means = '\t'.join(str(v) for v in mvs["r_means"].values())
+                r_means = '\t'.join(
+                    (str(round(v, 3)) for v in mvs["r_means"].values())
+                )
                 if len(r_means):
                     tlist.append(f'- MEAD mean resultant length(s): {r_means}')
 
                 # Fisher stats (only for MEAD+Fisher)
                 if len(fisher_stats := mvs["fisher_stats"]):
-                    r_val, angle, kappa = (
-                        tuple(map(str, x)) for x in zip(*fisher_stats.values())
+                    r_val, angle, kappa = zip(*fisher_stats.values())
+                    s1 = '  - Magnitude of mean vector(s): ' + '\t'.join(
+                        (str(round(r, 3)) for r in r_val)
                     )
-                    s1 = '  - Magnitude of mean vector(s): ' + '\t'.join(r_val)
-                    s2 = '  - Confidence radius (degrees): ' + '\t'.join(angle)
-                    s3 = '  - Vector(s) dispersion factor: ' + '\t'.join(kappa)
+                    s2 = '  - Confidence radius (degrees): ' + '\t'.join(
+                        (str(round(a, 3)) for a in angle)
+                    )
+                    s3 = '  - Vector(s) dispersion factor: ' + '\t'.join(
+                        (str(round(k, 1)) for k in kappa)
+                    )
                     fstats = '\n'.join((s1, s2, s3))
                     tlist.append(f'- Fisher statistics:\n{fstats}')
                 
@@ -1383,7 +1392,7 @@ class RoseDiagrams(_ToolBase):
             )
 
             # Compute mean vector(s) if required
-            clustering_stats: list[MeanVectorStats] = []
+            mean_vector_stats: list[MeanVectorStats] = []
             if _mean_vect == 'YES':
 
                 # Initialize MEAD statistics
@@ -1429,18 +1438,18 @@ class RoseDiagrams(_ToolBase):
                         sign = -1
 
                     # Update MEAD statistics for i-th cluster 
-                    mead_stats["vectors"][str(i)] = (avg_deg, np.nan)
-                    mead_stats["r_means"][str(i)] = round(r_mean, 3)
+                    mead_stats["vectors"][i] = (avg_deg, np.nan)
+                    mead_stats["r_means"][i] = r_mean
 
-                # Add MEAD statistics to clustering statistics
-                clustering_stats.append(mead_stats)
+                # Add MEAD statistics to mean vector statistics
+                mean_vector_stats.append(mead_stats)
 
             # Populate overall statistics for _type data
             statistics[type_lbl] = {
                 "n": len(azimuth),
                 "kind": "lines",
                 "contour": [],
-                "clustering": clustering_stats
+                "clustering": mean_vector_stats
             }
 
         # PLOT FINALIZATION ---------------------------------------------------
