@@ -892,6 +892,39 @@ class _ToolBase(object):
 
         parameter.values = table
 
+    
+    def getUniqueLabel(
+        self,
+        label: str,
+        existent: Iterable[str] | None = None
+    ) -> str:
+        
+        """
+        Generate a unique label by adding a progressive numerical suffix to
+        'label' if it already exists in 'existent'. If 'existent' is None, the
+        original 'label' is returned unchanged.
+
+        Args:
+            label (str): Original label.
+            existent (Iterable[str] | None, optional): List of existent labels.
+                Defaults to None.
+
+        Returns:
+            str: Unique label
+        """
+
+        # Return original label if there are no existing labels to check
+        if existent is None:
+            return label
+        
+        # Add progressive suffix to label
+        suffix = 0
+        unique_label = label
+        while unique_label in existent:
+            suffix += 1
+            unique_label = f'{label}({suffix})' 
+        return unique_label
+
 
     def whereClause(
         self,
@@ -1381,16 +1414,9 @@ class RoseDiagrams(_ToolBase):
         for (_type, _color, _mean_vect, _nclusts, _azm_tol) in plot_data:
            
             # Get azimuth and weight values from data filtered by _type
-            flt = data[data[Type_Field.valueAsText] == _type]
-            azimuth = flt[Azimuth_Field.valueAsText] % 360
-            weights = flt[Weight_Field.valueAsText] if Weighted.value else None
-
-            # Define label for _type to ensure tracking all plotted instances
-            type_label = _type
-            suffix = 0
-            while type_label in statistics.keys():
-                suffix += 1
-                type_label = f'{_type}({suffix})' 
+            filtered = data[data[fields[1]] == _type]
+            azimuth = filtered[fields[0]] % 360
+            weights = filtered[fields[2]] if Weighted.value else None
 
             # Compute histogram
             bins = np.arange(-5, 366, 10)
@@ -1408,9 +1434,14 @@ class RoseDiagrams(_ToolBase):
             # Update maximum bar lenght
             max_bar_length = max(max_bar_length, hist.max())
 
-            # Add histogram data to plot
-            if _color == 'Random':                                              
+            # Randomize color if required
+            if _color == 'Random':
                 _color = np.random.choice(list(COLORS.keys()))
+
+            # Ensure tracking all plotted instances of _type
+            type_lbl = self.getUniqueLabel(_type, statistics.keys())
+
+            # Add histogram data to plot
             ax.bar(
                 x=np.radians(np.arange(0, 360, 10)),
                 height=hist,
@@ -1419,7 +1450,7 @@ class RoseDiagrams(_ToolBase):
                 align='center',
                 color=COLORS.get(_color),
                 edgecolor='w' if _color == 'Black' else 'k', # TODO make outline lightgray when color is black
-                label=type_label
+                label=type_lbl
             )
 
             # Compute mean vector(s) if required
@@ -2260,14 +2291,6 @@ class StereoPlots(_ToolBase):
         plot_data = pd if (pd := Plot_Data.values) is not None else []
         for _type, _color, _marker, _msize, _line, _lwidth in plot_data:
 
-            # Define label for _type to ensure tracking all plotted instances
-            # TODO make it a common method
-            type_lbl = _type
-            suffix = 0
-            while type_lbl in statistics.keys():
-                suffix += 1
-                type_lbl = f'{_type}({suffix})' 
-
             # Determine majority data kind (planar or linear)
             filtered = data[data[fields[3]] == _type]
             strike, dip, trend, plunge = self.splitLineAndPlaneData(filtered)
@@ -2277,6 +2300,9 @@ class StereoPlots(_ToolBase):
             if warn:
                 msg = f'Found both planar and linear data for type "{_type}".'
                 messages.addWarningMessage(f'Plot data: {msg}')
+
+            # Ensure tracking all plotted instances of _type
+            type_lbl = self.getUniqueLabel(_type, statistics.keys()) 
 
             # Populate general statistics for _type data
             statistics[type_lbl] = {
