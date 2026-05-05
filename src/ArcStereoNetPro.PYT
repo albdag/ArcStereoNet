@@ -646,6 +646,9 @@ class _ToolBase(object):
     # Field hints for auto filling input Fields parameters (must be lowercase)
     AZIMUTH_HINTS = (
         'azimuth',
+        'azimuths',
+        'bearing',
+        'bearings',
         'orientation',
         'orientations',
         'strike',
