@@ -6,13 +6,15 @@ import importlib.util
 import io
 import re
 import shlex
+from matplotlib.colors import BoundaryNorm, ListedColormap
+from matplotlib.contour import QuadContourSet
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from matplotlib.projections.polar import PolarAxes
 # matplotlib.use('TkAgg') use for interactive plots with plt.show()
-import matplotlib.pyplot as plt
 import matplotlib.patheffects as mpe
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 from typing import Any, Iterable, Literal, TypedDict
 from os import path, startfile
 from datetime import datetime
@@ -141,25 +143,47 @@ def temp_filepath(file_name: str) -> str:
     temp_path = path.join(scratch_folder, file_name)
     return temp_path
 
-#-------------------Distinguish Planar from Linear features--------------------#
+            
+def mead(*args, vectors: bool = True, **kwargs: dict[str, Any]):
+    # ATM only use it for StereoPlots, in future extend to RoseDiagrams
+    # if len(args) == 1:
+    #     args = (args[0], None)
 
-def filterData(dataset, type):
+    # Parse args
+    args = (a.tolist() for a in args)
+    
+    # Parse kwargs
+    # mead_kwargs = { # future improvement
+    #     'wgts': self.kwargs.get('wgts', None),
+    #     'measurement': self.kwargs.get('measurement', 'poles'),
+    #     'n_clusts': self.kwargs.get('n_clusts', None),
+    #     'azm_tol': self.kwargs.get('azm_tol', 0.5),
+    #     'dip_tol': self.kwargs.get('inc_tol', 0.3)
+    # }
+    mead_kwargs = {
+        'measurement': kwargs.get('measurement', 'poles'),
+        'tol_str': kwargs.get('azm_tol', 0.5),
+        'tol_dip': kwargs.get('inc_tol', 0.3),
+        'n_clusts': kwargs.get('n_clusts', None),
+    }
 
-    ''' dataset-> [[azimuth, dip angle, method, type], ...]'''
+    clusters = angles_clustering(*args, **mead_kwargs)
+    # clusters, _ = angles_clustering_new(a1, a2, **mead_kwargs) # future
+    mean_vect = []
+    r_means = []
+    for c in clusters:
+        azm, inc = zip(*c)
+        avg_azm, r_mean = avg_angle(azm)
+        # avg_inc = np.nan if a2 is None else np.mean(inc)
+        avg_inc = np.mean(inc)
+        mean_vect.append((avg_azm, avg_inc))
+        r_means.append(r_mean)
 
-    strikes, dips, trends, plunges = [], [], [], []
+    if vectors:
+        return clusters, mean_vect, r_means
+    else:
+        return clusters
 
-    for d in dataset:
-        if d[3] == type:
-
-            if d[2] == 'RHR':
-                strikes.append(d[0])
-                dips.append(d[1])
-            else:
-                trends.append(d[0])
-                plunges.append(d[1])
-
-    return strikes, dips, trends, plunges
 
 
 
@@ -313,13 +337,13 @@ def angles_clustering(
 class MeanVectorStats(TypedDict):
     # Algorithm name
     algorithm: MeanVectorAlgorithm
-    # Mean azimuth and dip values per cluster id
+    # Mean azimuth and inclination values per cluster id
     vectors: dict[int, tuple[float, float]]
     # Mean resultant lengths per cluster id
     r_means: dict[int, float]
     # Fisher statistics (R value, confidence radius, kappa) per cluster id
     fisher_stats: dict[int, tuple[float, float, float]]
-    # MEAD azimuth and dip tolerance values
+    # MEAD azimuth and inclination tolerance values
     tol: tuple[float, float] | None
     # Fisher confidence
     conf: float | None
@@ -633,7 +657,7 @@ class _ToolBase(object):
         'trend',
         'trends'
     )
-    DIP_HINTS = (
+    INCLINATION_HINTS = (
         'dip',
         'dips',
         'dip_angle',
@@ -1577,13 +1601,112 @@ class StereoPlots(_ToolBase):
         )
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         """Define the tool (tool name is the name of the class)."""
 
         super().__init__()
         self.label = 'Stereoplots'
         self.description = 'Add description.'
+
+
+    def splitLineAndPlaneData(self, in_data: NDArray) -> list[NDArray]:
+        
+        """Split linear data (trends / plunges) from planar data (strikes /
+        dips) that populate the same input 'in_data' structured array.
+
+        Args:
+            in_data (NDArray): Input structured array containing oriented data.
+            It must exactly contain 4 fields (tuple of 4 elements per row),
+            including the following information (in order): azimuth (float),
+            inclination (float), sampling method (str), data type (str).
+
+        Raises:
+            TypeError: 'in_data' must be a structured array with four fields.
+
+        Returns:
+            list[NDArray]: Output split planar and linear data, divided in
+            strikes, dips, trends and plunges arrays.
+        """
+        
+        # Enforce requirement of a strucured array with exactly four fields
+        if (fields := in_data.dtype.names) is None or len(fields) != 4:
+            raise TypeError('A structured array with 4 fields is required')
+        
+        # Split linear from planar data
+        azimuth_field, inclination_field, method_field, _ = fields
+        planar_data = in_data[in_data[method_field] == 'RHR']
+        linear_data = in_data[in_data[method_field] == 'TP']
+        
+        # Extract strikes / dips from planes and trends / plunges from lines
+        strikes = planar_data[azimuth_field] % 360
+        dips = planar_data[inclination_field]
+        trends = linear_data[azimuth_field] % 360
+        plunges = linear_data[inclination_field]
+
+        return [strikes, dips, trends, plunges]
+    
+
+    def getMajorityDataKind(
+        self,
+        strike: ArrayLike,
+        trend: ArrayLike
+    ) -> tuple[Literal["planes", "lines"], bool]:
+        
+        """Return the majority data kind amongst planar and linear features, by
+        analyzing the amount of 'strikes' and 'trends' records. Tipically, one
+        of the two should contain 0 records; if this is not the case, this 
+        function will send a warning.
+
+        Args:
+            strike (ArrayLike): Strike data.
+            trend (ArrayLike): Trend data.
+
+        Returns:
+            majority, warning (tuple[Literal["planes", "lines"], bool]): The 
+            majority data kind; 'warning' is True if minority data kind is > 0.
+        """
+        
+        # Determine majority data kind (planar or linear)
+        strike, trend = np.asarray(strike), np.asarray(trend)
+        n_planes, n_lines = len(strike), len(trend)
+        majority = 'planes' if n_planes > n_lines else 'lines'
+
+        # Report if both linear and planar data are found for the same type
+        warning = min(n_planes, n_lines) > 0
+
+        return majority, warning
+    
+
+    def hideFirstContourLevel(self, contour: QuadContourSet) -> None:
+
+        """Makes the first (lowest) filled region of a 'contour' QuadContourSet
+        fully transparent while preserving automatic levels.
+
+        Args:
+            contour (QuadContourSet): Filled contour.
+
+        Raises:
+            TypeError: 'contour' must be a filled QuadContourSet.
+
+        """
+
+        # Enforce requirement of a filled contour
+        if not contour.filled:
+            raise TypeError('Required a filled QuadContourSet.')
+        
+        # Generate colors from original colormap, but set first one transparent 
+        levels = list(contour.levels)
+        colors = np.zeros((len(levels)-1, 4))
+        colors[0] = [1, 1, 1, 0]
+        colors[1:] = contour.get_cmap()(np.linspace(0, 1, len(levels)-2))
+
+        # Assign new colormap and normalization to contour
+        contour.set_cmap(ListedColormap(colors))
+        contour.set_norm(BoundaryNorm(levels, len(colors)))
+        
+        # Fix transparency of first level being ignored by PathCollection
+        contour.collections[0].set_alpha(0)
 
 
     def getParameterInfo(self) -> list[arcpy.Parameter]:
@@ -1615,10 +1738,10 @@ class StereoPlots(_ToolBase):
         param1.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
         param1.filter.list = NUM_FIELD_FILTERS                                 # type: ignore[reportOptionalMemberAccess]
         
-        # DIP FIELD (param2) --------------------------------------------------
+        # INCLINATION FIELD (param2) --------------------------------------------------
         param2 = arcpy.Parameter(
-            name='dip_field',
-            displayName='Dip Field',
+            name='inclination_field',
+            displayName='Inclination Field',
             direction='Input',
             datatype='Field',
             parameterType='Required'
@@ -1923,7 +2046,7 @@ class StereoPlots(_ToolBase):
         # Parameters accessed by this method
         Input_Feature = parameters[0] # Feature Class
         Azimuth_Field = parameters[1] # Field
-        Dip_Field = parameters[2] # Field
+        Inclination_Field = parameters[2] # Field
         Method_Field = parameters[3] # Field
         Type_Field = parameters[4] # Field
         Plot_Data = parameters[5] # ValueTable
@@ -1934,12 +2057,12 @@ class StereoPlots(_ToolBase):
         Mean_Vector_Data = parameters[19] # ValueTable
         Track_Mead = parameters[20] # GPBoolean
 
-        # Attempt to fill Azimuth, Dip, Method and Type fields parameters with
-        # matching fields from the newly selected Input Feature. Clear them if
-        # the Input Feature parameter is empty
+        # Attempt to fill Azimuth, Inclination, Method and Type fields params
+        # with matching fields from the newly selected Input Feature. Clear
+        # them if the Input Feature parameter is empty
         if Input_Feature.value is None:
             Azimuth_Field.value = None
-            Dip_Field.value = None
+            Inclination_Field.value = None
             Method_Field.value = None
             Type_Field.value = None
 
@@ -1949,7 +2072,7 @@ class StereoPlots(_ToolBase):
             numf = [f for f in fields if f.type in NUM_FIELD_TYPES]
             strf = [f for f in fields if f.type == 'String']
             self.inferFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
-            self.inferFieldParameter(Dip_Field, numf, self.DIP_HINTS)
+            self.inferFieldParameter(Inclination_Field, numf, self.INCLINATION_HINTS)
             self.inferFieldParameter(Method_Field, strf, self.METHOD_HINTS)
             self.inferFieldParameter(Type_Field, strf, self.TYPE_HINTS)
 
@@ -2030,18 +2153,16 @@ class StereoPlots(_ToolBase):
             msg = 'Schmidt net type is recommended for better statistics.'
             Net_Type.setWarningMessage(msg)
 
-        # Set warning to Contour Data ValueTable when more than one feature is
-        # selected
-        if (con_data := Contour_Data.values) is not None and len(con_data) > 1:
-            msg = 'Applying contour on multiple features may cause issues.'
-            Contour_Data.setWarningMessage(msg)
-
         return
 
 
-    def isLicensed(self):
+    def isLicensed(self) -> bool:
 
-        """Set whether tool is licensed to execute."""
+        """Set whether tool is licensed to execute.
+
+        Returns:
+            bool: Whether tool is licensed.
+        """
 
         return True
 
@@ -2066,11 +2187,14 @@ class StereoPlots(_ToolBase):
                   f"more info, check the installation guide at {link}"
             messages.addErrorMessage(msg)
             return
+        
+        # Initialize statistics dictionary
+        statistics: dict[str, StatItem] = {}
 
         # Get parameters
         Input_Feature = parameters[0]
         Azimuth_Field = parameters[1]
-        Dip_Field = parameters[2]
+        Inclination_Field = parameters[2]
         Method_Field = parameters[3]
         Type_Field = parameters[4]
         Plot_Data = parameters[5]
@@ -2090,63 +2214,8 @@ class StereoPlots(_ToolBase):
         Mean_Vector_Data = parameters[19]
         Track_Mead = parameters[20]
 
-
-#-------------------------------Importing Data---------------------------------#
-
-        fields_params = (Azimuth_Field, Dip_Field, Method_Field, Type_Field)
-        fields = tuple(fp.valueAsText for fp in fields_params)                  # Supported field names, later referred as: [0],[1],[2],[3]
-        source = Input_Feature.valueAsText
-        data_array = arcpy.da.FeatureClassToNumPyArray(source, fields,
-                                                       null_value='')
-        data = data_array.tolist()
-
-        if Save_Image.value:
-            coords = arcpy.da.FeatureClassToNumPyArray(source, 'Shape')         # Extracting centroid coordinates
-            centroid = np.nanmean(coords.tolist(), axis=0)[0]
-
-
-#-------------------------Pre-Elaboration of Data------------------------------#
-
-        # Determine image output filepath
-        if Save_Image.value:
-            image_outpath = Image_Output.valueAsText
-        else:
-            image_outpath = temp_filepath('Stereoplot_temp.png')
-
-#>>> Transforming DD data in RHR data <<<
-
-        fixed_data = []
-        for x in data:
-            if x[2] == 'DD':
-                fixed_strike = (x[0] - 90) % 360
-                fixed_method = 'RHR'
-
-            else:
-                fixed_strike = x[0]
-                fixed_method = x[2]
-
-            fixed_data.append((fixed_strike, x[1], fixed_method, x[3]))
-
-
-#>>> Initialize projected data types set & statistics variables for log file
-
-        proj_types = set()
-
-        if Write_Log.value:
-            contour_stats = []
-            stats_log = {}
-            fisher_stats = {}
-
-
-#>>> Initialize fisher cones dictionary to show cones in legend
-
-        from matplotlib.lines import Line2D
-        fisher_cones = {}
-
-
-
-#-----------------------Initialization of MPLStereonet-------------------------#
-        # Initialize plot
+        # PLOT INITIALIZATION -------------------------------------------------
+        # Create figure with stereonet ax
         fig = Figure(figsize=(6, 6), dpi=Image_Dpi.value)
         if Net_Type.valueAsText == 'Wulff (Equal Angle)':
             ax = msn.stereonet_axes.EqualAngleAxes(fig, 111)
@@ -2159,428 +2228,451 @@ class StereoPlots(_ToolBase):
         ax.set_title(title, y=1.1, fontsize=18)
 
         # Set grid and ticks
-        ax.grid(Show_Grid.value)
-        ax.set_azimuth_ticks(np.linspace(0, 360, N_TICKS.value, False))
+        ax.grid(alpha=0.4 if Show_Grid.value else 0)
+        ax.set_azimuth_ticks(np.linspace(0, 360, Num_Ticks.value, False))
         if (n := Num_Ticks.value) > 0:
             ticklabels = COMPASS_LABELS[Ticks_Format.valueAsText]
             ax.set_azimuth_ticklabels(ticklabels[::8//n])
 
-#-----------------------Plotting of selected data------------------------------#
+        # DATA PLOTTING -------------------------------------------------------
+        # Parse oriented data
+        fields = [
+            f.valueAsText for f in (
+                Azimuth_Field, Inclination_Field, Method_Field, Type_Field
+            )
+        ]
 
-#>>> PLOTTING DATA Value Table <<<
+        data = arcpy.da.FeatureClassToNumPyArray(
+            in_table=Input_Feature.valueAsText,
+            field_names=fields,
+            null_value=''
+        )
 
-        if Plot_Data.values != None:
-            for row in Plot_Data.values:
-                _type, _color, _marker, _mSize, _line, _lWidth = row
+        # Convert Dip-Direction (DD) data to Right-Hand Rule (RHR)
+        dd_mask = data[fields[2]] == 'DD'
+        data[fields[0]][dd_mask] -= 90 # module 360 is computed later
+        data[fields[2]][dd_mask] = 'RHR'
 
-                if _color == 'Random':                                          # Select a random color if not specified by the user
-                    random_index = np.random.randint(len(COLORS))
-                    _color = list(COLORS.keys())[random_index]
+        # Plot data
+        plot_data = pd if (pd := Plot_Data.values) is not None else []
+        for _type, _color, _marker, _msize, _line, _lwidth in plot_data:
 
-                proj_types.add(_type)                                           # Add data type to projected data types set
+            # Define label for _type to ensure tracking all plotted instances
+            # TODO make it a common method
+            type_lbl = _type
+            suffix = 0
+            while type_lbl in statistics.keys():
+                suffix += 1
+                type_lbl = f'{_type}({suffix})' 
 
-                strikes, dips, trends, plunges = filterData(fixed_data, _type)  # Splitting RHR data from TP data
+            # Determine majority data kind (planar or linear)
+            filtered = data[data[fields[3]] == _type]
+            strike, dip, trend, plunge = self.splitLineAndPlaneData(filtered)
+            kind, warn = self.getMajorityDataKind(strike, trend)
 
+            # Report if both linear and planar data are found for the same type
+            if warn:
+                msg = f'Found both planar and linear data for type "{_type}".'
+                messages.addWarningMessage(f'Plot data: {msg}')
 
-                if _marker != 'NONE':                                           # Plotting Poles or Vectors
+            # Populate general statistics for _type data
+            statistics[type_lbl] = {
+                "n": len(strike if kind == 'planes' else trend),
+                "kind": kind,
+                "contour": [],
+                "clustering": []
+            }
 
-                    if len(strikes) > len(trends):
-                        ax.pole(strikes,
-                                dips,
-                                c = COLORS[_color],
-                                marker = MARKERS[_marker],
-                                mec = 'w' if _color == 'Black' else 'k',
-                                markersize = _mSize,
-                                label = _type + ' (Poles)')
+            # Randomize color if required
+            if _color == 'Random':
+                _color = np.random.choice(list(COLORS.keys()))
 
-                    else:
-                        ax.line(plunges,
-                                trends,
-                                c = COLORS[_color],
-                                marker = MARKERS[_marker],
-                                mec = 'w' if _color == 'Black' else 'k',
-                                markersize = _mSize,
-                                label = _type)
-
-
-                if _line != 'NONE':                                             # Plotting Planes
-                        fground = 'white' if _color == 'Black' else 'black'
-                        ax.plane(strikes,
-                                 dips,
-                                 c = COLORS[_color],
-                                 ls = LINES[_line],
-                                 linewidth = _lWidth,
-                                 path_effects = [mpe.withStroke(linewidth=_lWidth*2,
-                                                                foreground=fground)],
-                                 label = _type)
-
-
-
-#>>> CONTOUR Value Table <<<
-
-        if Contour_Data.values != None:
-            for row in Contour_Data.values:
-                _type, _method, _sigma, _style, _color, _alpha = row
-
-                if _color == 'Random':                                          # Select a random color map if not specified by the user
-                    random_index = np.random.randint(len(CONTOUR_COLORMAPS))
-                    _color = list(CONTOUR_COLORMAPS.keys())[random_index]
-
-                _alpha = 1 - (_alpha / 100.)                                    # Converting transparency to opacity (matplotlib "alpha" parameter)
-
-                proj_types.add(_type)                                           # Add data type to projected data types set
-
-                strikes, dips, trends, plunges = filterData(fixed_data, _type)  # Splitting RHR data from TP data
-
-                if len(strikes) > len(trends):
-                    x1, x2, apply_on = strikes, dips, 'poles'
+            # Add markers (poles to planes or line vectors) to plot
+            if _marker != 'None':
+                kwargs = {
+                    'color': COLORS.get(_color),
+                    'marker': MARKERS.get(_marker),
+                    'markeredgecolor': 'w' if _color == 'Black' else 'k', # TODO make outline lightgray when color is black
+                    'markersize': _msize
+                }
+                if kind == 'planes':
+                    ax.pole(strike, dip, label=f'{type_lbl} (Poles)', **kwargs)
                 else:
-                    x1, x2, apply_on = plunges, trends, 'lines'
+                    ax.line(plunge, trend, label=type_lbl, **kwargs)
+            
+            # Add cyclographic traces to plot
+            if _line != 'NONE':
+                ax.plane(
+                    strike=strike,
+                    dip=dip,
+                    color=COLORS.get(_color),
+                    label=type_lbl,
+                    linestyle=LINES.get(_line),
+                    linewidth=_lwidth,
+                    path_effects=[
+                        mpe.withStroke(
+                            linewidth=_lwidth * 2,
+                            foreground='w' if _color == 'Black' else 'k'
+                        )
+                    ]
+                )
 
+        # Plot contour data
+        contour_data = cd if (cd := Contour_Data.values) is not None else []
+        n_contours = 0
+        for _type, _method, _sigma, _style, _cmap, _alpha in contour_data:
+            n_contours += 1
 
-                if _style == 'Filled':                                          # Applying Filled Density Contour Function on poles or vectors
+            # Determine majority data kind (planar or linear)
+            filtered = data[data[fields[3]] == _type]
+            strike, dip, trend, plunge = self.splitLineAndPlaneData(filtered)
+            kind, warn = self.getMajorityDataKind(strike, trend)
 
-                    fdcf = ax.density_contourf(x1,
-                                               x2,
-                                               method = CONTOUR_METHODS[_method],
-                                               measurement = apply_on,
-                                               sigma = _sigma,
-                                               cmap = CONTOUR_COLORMAPS[_color],
-                                               alpha = _alpha)
+            # Report if both linear and planar data are found for the same type
+            if warn:
+                msg = f'Found both planar and linear data for type "{_type}".'
+                messages.addWarningMessage(f'Contour data: {msg}')
 
-                    mask = ax.density_contour(x1,
-                                              x2,
-                                              method = CONTOUR_METHODS[_method],
-                                              measurement = apply_on,
-                                              sigma = _sigma,
-                                              colors = 'black',
-                                              alpha = _alpha)
+            # Add contour statistics for _type data
+            contour_stats = (_method, _sigma)
+            if _type in statistics.keys():
+                statistics[_type]['contour'].append(contour_stats)
+            else:
+                statistics[_type] = {
+                    "n": len(strike if kind == 'planes' else trend),
+                    "kind": kind,
+                    "contour": [(_method, _sigma)],
+                    "clustering": []
+                }
 
+            # Randomize colormap if required
+            if _cmap == 'Random':
+                _cmap = np.random.choice(list(CONTOUR_COLORMAPS.keys()))
+            cmap = CONTOUR_COLORMAPS.get(_cmap)
 
-                else:                                                           # Applying Unfilled Density Contour Function on poles or vectors
+            # Define contour args and kwargs
+            args = (strike, dip) if kind == 'planes' else (plunge, trend)
+            kwargs = {
+                'measurement': 'poles' if kind == 'planes' else 'lines',
+                'method': CONTOUR_METHODS.get(_method),
+                'sigma': _sigma,
+                'alpha': 1 - (_alpha / 100),
+                'linewidths': 1,
+                'zorder': 1 * n_contours
+            }
 
-                    udcf = ax.density_contour(x1,
-                                              x2,
-                                              method = CONTOUR_METHODS[_method],
-                                              measurement = apply_on,
-                                              sigma = _sigma,
-                                              cmap = CONTOUR_COLORMAPS[_color],
-                                              alpha = _alpha)
+            # Add filled or unfilled countour to plot
+            if _style == 'Filled':
+                contour = ax.density_contourf(*args, cmap=cmap, **kwargs)
+                self.hideFirstContourLevel(contour)
+                ax.density_contour(*args, colors='gray', **kwargs) # outline
+                    
+            else:
+                contour = ax.density_contour(*args, cmap=cmap, **kwargs)
 
+            # Add colorbar to plot if required
+            if Show_Colorbar.value:
+                x, y = -0.65,  1.2 - 0.2 * n_contours
+                cbax = ax.inset_axes((x, y, 0.5, 0.02))
+                cbax.tick_params(labelsize=7)
+                fig.colorbar(
+                    mappable=contour,
+                    cax=cbax,
+                    orientation='horizontal',
+                    ticklocation='top'
+                )
+                info = f'Contour on: {_type}\nMethod: {_method}\nσ: {_sigma}'
+                ax.text(x, y - 0.1, info, fontsize=8, transform=ax.transAxes)
 
-                if Write_Log.value:
-                    contour_stats = [_type, _method, _sigma]
+        # Plot mean vector data
+        cones_proxy: dict[str, Line2D] = {} # only used for MEAD+Fisher
+        mv_data = mvd if (mvd := Mean_Vector_Data.values) is not None else []
+        for (_type, _algorithm, _nclusts, _azm_tol, _inc_tol, _fisher_conf,
+             _color, _marker, _msize, _line, _lwidth) in mv_data:
+            
+            # Determine majority data kind (planar or linear)
+            filtered = data[data[fields[3]] == _type]
+            strike, dip, trend, plunge = self.splitLineAndPlaneData(filtered)
+            kind, warn = self.getMajorityDataKind(strike, trend)
 
+            # Report if both linear and planar data are found for the same type
+            if warn:
+                msg = f'Found both planar and linear data for type "{_type}".'
+                messages.addWarningMessage(f'Mean vector data: {msg}')
 
+            # Initialize mean vector statistics
+            mean_vector_stats: MeanVectorStats = {
+                "algorithm": _algorithm,
+                "vectors": {},
+                "r_means": {},
+                "fisher_stats": {},
+                "tol": None,
+                "conf": None
+            }
 
-#>>> EXTRACT MEAN VECTORS Value Table <<<
+            # Define type of data measurement
+            if kind == 'planes':
+                args, measurement = (strike, dip), 'poles'
+            else:
+                args, measurement = (plunge, trend), 'lines'
+            
+            # Find mean vector(s) and update mean vector statistics
+            match _algorithm:
+                case 'Bingham':
+                    vect = msn.fit_girdle(*args, measurement=measurement)
+                    mean_vector_stats["vectors"] = {1: vect}
 
-        if Mean_Vector_Data.values != None:
-            for row in Mean_Vector_Data.values:
-                _type, _algorithm, _nClusts, _azmTol, _dipTol, _conf = row[:6]
-                _color, _marker, _mSize, _line, _lWidth = row[6:]
-
-
-                if _color == 'Random':                                          # Select a random color if not specified by the user
-                    random_index = np.random.randint(len(COLORS))
-                    _color = list(COLORS.keys())[random_index]
-
-                proj_types.add(_type)                                           # Add data type to projected data types set
-
-                strikes, dips, trends, plunges = filterData(fixed_data, _type)  # Splitting RHR data from TP data
-
-                if len(strikes) > len(trends):
-                    x1, x2, apply_on = strikes, dips, 'poles'
-                else:
-                    x1, x2, apply_on = plunges, trends, 'lines'
-
-
-                if _algorithm == 'K-means':                                     # Extract K-means mean vector(s)
-
+                case 'K-means':
+                    kwargs = {'num': _nclusts, 'measurement': measurement}
                     while True:
-                        try:
-                            centers = msn.kmeans(x1, x2, num=_nClusts,
-                                             measurement=apply_on)
+                        try: # TEST bidirectional=False
+                            centers = np.asarray(msn.kmeans(*args, **kwargs))
                             break
                         except np.linalg.LinAlgError:
-                            _nClusts -= 1
+                            kwargs["num"] -= 1
 
-                    if apply_on == 'poles':
-                        c1, c2 = msn.geographic2pole(*zip(*centers))
+                    if measurement == 'poles':
+                        c1, c2 = msn.geographic2pole(*centers.T)
+                        vect = [(c1[i], c2[i]) for i in range(len(centers))]
                     else:
-                        c1, c2 = msn.geographic2plunge_bearing(*zip(*centers))
+                        c1, c2 = msn.geographic2plunge_bearing(*centers.T)
+                        vect = [(c2[i], c1[i]) for i in range(len(centers))]
+                    
+                    mean_vector_stats["vectors"] = dict(enumerate(vect))
 
+                case 'MEAD':
+                    kwargs = {
+                        'measurement': measurement,
+                        'n_clusts': _nclusts,
+                        'azm_tol': _azm_tol / 100,
+                        'inc_tol': _inc_tol / 100
+                    }
+                    mead_clusters, vect, _ = mead(*args, **kwargs)
 
-                elif _algorithm == 'Bingham':                                   # Extract Bingham Statistics
+                    mean_vector_stats["vectors"] = dict(enumerate(vect))
+                    mean_vector_stats["tol"] = (_azm_tol, _inc_tol)
 
-                    c1, c2 = zip(msn.fit_girdle(x1, x2, measurement = apply_on))
-
-
-
-                else:                                                           # Extract MEAD clusters
-
-                    _azmTol, _dipTol = _azmTol / 100., _dipTol / 100.
-
-                    mead_clust = angles_clustering(x1, x2, apply_on,
-                                                   _azmTol, _dipTol,
-                                                   _nClusts)
-
-                    azm, inc = [], []
-                    for mc in mead_clust:
-                        fam = list(zip(*mc))
-                        azm.append(fam[0])
-                        inc.append(fam[1])
-
-                        if Track_Mead.value:                                    # Track MEAD clustering process behaviour if required
-                            num_mark = '${}$'.format(mead_clust.index(mc) + 1)
-                            if apply_on == 'poles':
-                                ax.pole(fam[0],
-                                        fam[1],
-                                        c = 'k',
-                                        marker = num_mark,
-                                        mec = COLORS[_color],
-                                        markersize = _mSize + _mSize/2.)
-
-                            else:
-                                ax.line(fam[1],
-                                        fam[0],
-                                        c = 'k',
-                                        marker = num_mark,
-                                        mec = COLORS[_color],
-                                        markersize = _mSize + _mSize/2.)
-
-
-                    c1, c2 = [], []
-                    for i in range(len(mead_clust)):
-
-                        if 'Fisher' in _algorithm:                              # Extract Fisher mean vector(s) and stats
-
-                            if apply_on == 'poles':
-                                vectorPB, stats = msn.find_fisher_stats(azm[i], inc[i],
-                                                                    measurement = 'poles',
-                                                                    conf = _conf)
-                                vectorSD = msn.plunge_bearing2pole(*vectorPB)
-                                c1.append(vectorSD[0][0])
-                                c2.append(vectorSD[1][0])
-
-                            else:
-                                vectorPB, stats = msn.find_fisher_stats(inc[i], azm[i],
-                                                                    measurement = 'lines',
-                                                                    conf = _conf)
-                                c1.append(vectorPB[0])
-                                c2.append(vectorPB[1])
-
-                            ax.cone(vectorPB[0],
-                                    vectorPB[1],
-                                    stats[1],
-                                    facecolor = "none",
-                                    edgecolor = COLORS[_color],
-                                    linestyle = '-',
-                                    linewidth = _lWidth)
-
-                            cone_lbl = _type + ' mean confidence cone'
-                            fisher_cones[cone_lbl] = Line2D([0], [0],
-                                                            ls = 'None',
-                                                            mec = COLORS[_color],
-                                                            mfc = 'None',
-                                                            marker = "o",
-                                                            ms = 10,
-                                                            mew = _lWidth)
-
-                            if Write_Log.value:
-                                if _type not in fisher_stats:
-                                    fisher_stats[_type] = stats
-                                else:
-                                    fisher_stats[_type] += stats
-
-
-                        else:                                                   # Extract MEAD mean vector(s)
-
-                            c_azm, _ = avg_angle(azm[i])
-                            c_inc = sum(inc[i]) / len(inc[i])
-                            c1.append(c_azm if apply_on == 'poles' else c_inc)
-                            c2.append(c_inc if apply_on == 'poles' else c_azm)
-
-
-
-                label_root = '{} [{}] mean'.format(_type, _algorithm)           # Project Statistics Data and collect mean data and stats for log file if required
-                if _algorithm == 'Bingham':
-                    label_root = '{} [{}] best fit'.format(_type, _algorithm)
-
-                for n in range(len(c1)):
-
-                    if Write_Log.value:
-                        if apply_on == 'poles' or _algorithm == 'Bingham':
-                            mean = (c1[n], c2[n])
+                case 'MEAD+Fisher':
+                    mead_kwargs = {
+                        'measurement': measurement,
+                        'n_clusts': _nclusts,
+                        'azm_tol': _azm_tol / 100,
+                        'inc_tol': _inc_tol / 100
+                    }
+                    fisher_kwargs = {
+                        'measurement': measurement,
+                        'conf': _fisher_conf
+                    }
+                    
+                    vect = {}
+                    fisher_stats: dict[int, tuple[float, float, float]] = {}
+                    mead_clusters = mead(*args, vectors=False, **mead_kwargs)
+                    for i, cluster in enumerate(mead_clusters, start=1):
+                        azm, inc = zip(*cluster)
+                        if measurement == 'poles':
+                            pb_vect, stats = msn.find_fisher_stats(
+                                azm, inc, **fisher_kwargs
+                            )
+                            sd_vect = msn.plunge_bearing2pole(*pb_vect)
+                            vect[i] = (*sd_vect[0], *sd_vect[1])
                         else:
-                            mean = (c2[n], c1[n])
+                            pb_vect, stats = msn.find_fisher_stats(
+                                inc, azm, **fisher_kwargs
+                            )
+                            vect[i] = tuple(reversed(pb_vect))
 
-                        if (_type, _algorithm) not in stats_log:
-                            stats_log[(_type, _algorithm)] = mean
-                        else:
-                            stats_log[(_type, _algorithm)] += mean
+                        if stats is None:
+                            stats = (np.nan, np.nan, np.nan)
+                        r_value, angle, kappa = (
+                            np.nan if s is None else float(s) for s in stats
+                        )
+                        fisher_stats[i] = (r_value, angle, kappa)
 
+                    mean_vector_stats["vectors"] = vect
+                    mean_vector_stats["fisher_stats"] = fisher_stats
+                    mean_vector_stats["tol"] = (_azm_tol, _inc_tol)
+                    mean_vector_stats["conf"] = _fisher_conf
 
-                    if _marker != 'NONE':
+                case _: # technically impossible
+                    msg = f'Algorithm "{_algorithm}" not recognized.'
+                    messages.addErrorMessage(msg)
+                    return
+                
+            # Add clustering statistics to _type data
+            if _type in statistics.keys():
+                statistics[_type]['clustering'].append(mean_vector_stats)
+            else:
+                statistics[_type] = {
+                    "n": len(strike if kind == 'planes' else trend),
+                    "kind": kind,
+                    "contour": [],
+                    "clustering": [mean_vector_stats]
+                }
 
-                        if apply_on == 'poles' or _algorithm == 'Bingham':
-                            ax.pole(c1[n],
-                                    c2[n],
-                                    c = COLORS[_color],
-                                    marker = MARKERS[_marker],
-                                    mec = ('w' if _color == 'Black' else 'k'),
-                                    markersize = _mSize,
-                                    label = label_root + ' pole')
+            # Randomize color if required
+            if _color == 'Random':
+                _color = np.random.choice(list(COLORS.keys()))
 
-                        else:
-                            ax.line(c1[n],
-                                    c2[n],
-                                    c = COLORS[_color],
-                                    marker = MARKERS[_marker],
-                                    mec = ('w' if _color == 'Black' else 'k'),
-                                    markersize = _mSize,
-                                    label = label_root + ' vector')
+            # Add track MEAD clustering to plot if required
+            if Track_Mead.value and 'MEAD' in _algorithm:
+                kwargs = {
+                    'color': 'k',
+                    'markeredgecolor': COLORS.get(_color),
+                    'markersize': _msize * 1.5
+                }
+                for i, cluster in enumerate(mead_clusters, start=1):           # type: ignore[reportPossiblyUnboundVariable]
+                    azm, inc = zip(*cluster)
+                    if measurement == 'poles':
+                        ax.pole(azm, inc, marker=f'${i}$', **kwargs)
+                    else:
+                        ax.line(inc, azm, marker=f'${i}$', **kwargs)
 
+            # Add poles, line vectors and cyclographic traces to plot
+            avg_azm, avg_inc = zip(*mean_vector_stats["vectors"].values())
+            suffix = 'best fit' if _algorithm == 'Bingham' else 'mean'
+            label_root = f'{_type}\n[{_algorithm}] {suffix}'
+            
+            if _marker != 'NONE':
+                kwargs = {
+                    'color': COLORS.get(_color),
+                    'marker': MARKERS.get(_marker),
+                    'markeredgecolor': 'w' if _color == 'Black' else 'k', #TODO use lightgray instead of w
+                    'markersize': _msize
+                }
+                if measurement == 'poles' or _algorithm == 'Bingham': 
+                    lbl = f'{label_root} pole(s)'
+                    ax.pole(avg_azm, avg_inc, label=lbl, **kwargs)
+                else:
+                    lbl = f'{label_root} vector(s)'
+                    ax.line(avg_inc, avg_azm, label=lbl, **kwargs)
 
+            if (
+                _line != 'NONE' and (
+                    measurement == 'poles' or _algorithm == 'Bingham'
+                )
+            ):
+                ax.plane(
+                    strike=avg_azm,
+                    dip=avg_inc,
+                    color=COLORS.get(_color),
+                    label=f'{label_root} plane(s)',
+                    linestyle=LINES.get(_line),
+                    linewidth=_lwidth,
+                    path_effects=[
+                        mpe.withStroke(
+                            linewidth=_lwidth * 2,
+                            foreground='w' if _color == 'Black' else 'k'
+                        )
+                    ]
+                )
 
-                    if _line != 'NONE' and (apply_on == 'poles' or _algorithm == 'Bingham'):
+            # Add fisher cones to plot
+            if _algorithm == 'MEAD+Fisher':
+                angles = [v[1] for v in mean_vector_stats["fisher_stats"].values()]
+                if measurement == 'poles':
+                    plng, bear = msn.pole2plunge_bearing(avg_azm, avg_inc)
+                else:
+                    plng, bear = avg_inc, avg_azm
+                
+                ax.cone(
+                    plunge=plng,
+                    bearing=bear,
+                    angle=angles,
+                    facecolor='none',
+                    edgecolor=COLORS.get(_color),
+                    linestyle='-',
+                    linewidth=_lwidth
+                )
+                # Fix fisher cones not showing up in legend
+                cones_label = f'{_type}\n[MEAD+Fisher] confidence cone'
+                cones_proxy[cones_label] = Line2D(
+                    xdata=(0, ), 
+                    ydata=(0, ),
+                    linestyle='None',
+                    marker="o",
+                    markeredgecolor=COLORS.get(_color),
+                    markeredgewidth=_lwidth,
+                    markerfacecolor='None',
+                    markersize=10
+                )
 
-                        fground = ('white' if _color == 'Black' else 'black')
-                        ax.plane(c1[n],
-                                 c2[n],
-                                 c = COLORS[_color],
-                                 ls = LINES[_line],
-                                 linewidth = _lWidth,
-                                 path_effects = [mpe.withStroke(linewidth=_lWidth*2,
-                                                                foreground=fground)],
-                                 label = label_root + ' plane')
+        # PLOT FINALIZATION --------------------------------------------------- 
+        # Set optional legend
+        if Show_Legend.value:
+            hdl, lbl = ax.get_legend_handles_labels()
+            hdl.extend(cones_proxy.values())
+            lbl.extend(cones_proxy.keys())
+            by_lbl = {l: h for l, h in sorted(dict(zip(lbl, hdl)).items())}
+            if len(by_lbl):
+                ax.legend(
+                    handles=by_lbl.values(),
+                    labels=by_lbl.keys(),
+                    loc='upper left',
+                    bbox_to_anchor=(1.0, 0.9),
+                    ncols=1,
+                    fontsize=8,
+                    numpoints=1,
+                    bbox_transform=fig.transFigure,
+                    borderaxespad=0.0,
+                )
 
+        # Set optional "Number of Samples" label
+        n_samp = StatsLogger(statistics, "StereoPlots").samples(parag=False)
+        if Show_Num_Samples.value:
+            ax.text(
+                x=1.0,
+                y=0.0,
+                s=n_samp,
+                fontsize=8,
+                transform=fig.transFigure
+            )
 
+        # OUTPUT IMAGE AND LOG ------------------------------------------------
+        # Set output filepaths
+        if Save_Image.value:
+            image_outpath = Image_Output.valueAsText
+        else:
+            image_outpath = temp_filepath('StereoPlot_temp.png')
 
-#----Adding Legend, n.of Data label & Colorbar to the plot---#
+        root = path.splitext(image_outpath)[0]
+        log_outpath = f'{root}_LOG.txt'
+        xy_path = f'{root}_xy.txt'
 
-        if Show_Legend.value == True:
-            from collections import OrderedDict
-            handles, labels = ax.get_legend_handles_labels()
-            for lbl, hnd in fisher_cones.items():
-                handles.append(hnd)
-                labels.append(lbl)
-            by_label = OrderedDict(zip(labels, handles))
-
-            if len(by_label) > 0:
-                ax.legend(by_label.values(),
-                          by_label.keys(),
-                          loc = 'upper left',
-                          bbox_to_anchor = (1.0, 0.5, 0.5, 0.6),
-                          ncol = 1,
-                          fontsize = 8,
-                          numpoints = 1)
-
-
-        if Show_Num_Samples.value == True:
-            txt4lbl = ''
-            for pt in sorted(proj_types):
-                pt_num = sum([FD.count(pt) for FD in fixed_data])
-                txt4lbl += pt + ' = ' + str(pt_num) + '\n'
-            ax.text(1.0, 0.0,
-                    txt4lbl,
-                    fontsize = 8,
-                    transform = ax.transAxes)
-
-
-        if Show_Colorbar.value == True:
-            cbax = fig.add_axes((-0.2, 0.1, 0.03, 0.8))                       # left, bottom, width, height
-            try:
-                fig.colorbar(fdcf, cax=cbax)
-            except NameError:
-                fig.colorbar(udcf, cax=cbax)
-            contourInfo = u'Contour applied on:\n{}\n\nMethod: {}\nStd. Dev.: {}'.format(*CONTOUR.values[0][:3])
-            ax.text(-0.29, 0.0,
-                    contourInfo,
-                    fontsize = 8,
-                    transform = ax.transAxes)
-
-
-#-------------------------------Write Log File---------------------------------#
-
-        if Write_Log.value:
-            logPath = path.splitext(image_outpath)[0] + '_LOG.txt'
-
-            with io.open(logPath, 'w') as LOG:
-                LOG.write(title.upper() + '\n\n')
-
-                if Show_Num_Samples.value == False:
-                    txt4lbl = ''
-                    for pt in sorted(proj_types):
-                        pt_num = sum([FD.count(pt) for FD in fixed_data])
-                        txt4lbl += pt + ' = ' + str(pt_num) + '\n'
-                LOG.write(txt4lbl + u'\n')
-
-                if len(contour_stats) > 0:
-                    LOG.write(u'CONTOUR INFO\n')
-                    LOG.write(u'Applied on ->\t{}\n'.format(contour_stats[0]))
-                    LOG.write(u'Method ->\t{}\n'.format(contour_stats[1]))
-                    LOG.write(u'St.Dev. ->\t{}\n'.format(contour_stats[2]))
-                    LOG.write(u'\n')
-
-                if len(stats_log) > 0:
-                    LOG.write(u'STATISTICS\n')
-
-                    for key, val in sorted(stats_log.items()):
-                        m_azm = [u'{0:03d}'.format(int(round(i,0))) for i in val[0::2]]
-                        m_inc = [u'{0:02d}'.format(int(round(j,0))) for j in val[1::2]]
-                        m_tot = [i + u'/' + j for i, j in zip(m_azm, m_inc)]
-
-                        if key[1] == 'Bingham':
-                            desc = '[Bingham best fit plane]'
-                        else:
-                            desc = '[{} mean(s)]'.format(key[1])
-
-                        typeinfo = '{} {} ->\t'.format(key[0], desc)
-                        LOG.write(typeinfo + '\t'.join(m_tot) + u'\n')
-
-                        if key[1] == 'MEAD+Fisher':
-                            r_values = ['{0:0.3f}'.format(r) for r in fisher_stats[key[0]][0::3]]
-                            r_title = ' - R value (length of the mean vector) ->\t\t\t'
-                            angles = ['{0:0.2f}'.format(a) for a in fisher_stats[key[0]][1::3]]
-                            a_title = ' - Fisher angle (confidence radius in degrees) ->\t\t'
-                            k_values = ['{0:0.2f}'.format(k) for k in fisher_stats[key[0]][2::3]]
-                            k_title = ' - K value (dispersion factor) ->\t\t\t\t'
-                            LOG.write(u'<Fisher Statistics>:\n')
-                            LOG.write(r_title + '\t'.join(r_values) + u'\n')
-                            LOG.write(a_title + '\t'.join(angles) + u'\n')
-                            LOG.write(k_title + '\t'.join(k_values) + u'\n')
-                        LOG.write(u'\n')
-
-                final_note = u'\nNote that mean values are expressed as follows:\n\
- - strike/dip (planar features)\n\
- - trend/plunge (linear features)\n'
-                LOG.write(final_note)
-                LOG.write(u'\nLog file automatically compiled by ArcStereoNet')
-                LOG.close()
-
-
-
-#----------------------Save the figure and End the tool------------------------#
-
+        # Save figure
         fig.savefig(image_outpath, dpi='figure', bbox_inches='tight')
-        plt.close('all')
 
-        if Save_Image.value == False:
+        # Write log if required
+        if Write_Log.value:
+            logger = StatsLogger(statistics, "StereoPlots")
+            with open(log_outpath, 'wt', encoding='utf-8') as log:
+                # Title and number of samples
+                log.write(logger.paragraph(title.upper()))
+                log.write(logger.paragraph(n_samp))
+                # Contour statistics
+                log.write(logger.contour())
+                # Clustering statistics
+                log.write(logger.clustering())
+                # Extra info (tool name, datetime)
+                log.write(logger.extraInfo(parag=False))
+
+        # Save centroid coordinates if image is not temporary     
+        if Save_Image.value:
+            coords = arcpy.da.FeatureClassToNumPyArray(
+                in_table=Input_Feature.valueAsText,
+                field_names='Shape'
+            )        
+            clon, clat = np.nanmean(coords, axis=0)[0]
+            descr = arcpy.Describe(Input_Feature.valueAsText)
+            with open(xy_path, 'w') as xyfile:
+                xyfile.write(f'{clon}\n')
+                xyfile.write(f'{clat}\n')
+                xyfile.write(f'{path.join(descr.path, descr.name)}\n')
+
+        # Auto-show image (and optionally log file) if image is temporary
+        else: # add a dedicated boolean parameter to enable auto-show?
             startfile(image_outpath)
             if Write_Log.value:
-                startfile(logPath)
-
-        elif image_outpath.endswith('.png'):
-            xypath = path.splitext(image_outpath)[0] + '_xy.txt'       # Saving centroid coordinates
-            clon, clat = centroid
-            descr = arcpy.Describe(Input_Feature.valueAsText)
-            with io.open(xypath, 'w') as xyfile:
-                xyfile.write(u'{}\n'.format(clon))
-                xyfile.write(u'{}\n'.format(clat))
-                xyfile.write(u'{}\n'.format(path.join(descr.path, descr.name)))
-
-
+                startfile(log_outpath)
 
         return
 
