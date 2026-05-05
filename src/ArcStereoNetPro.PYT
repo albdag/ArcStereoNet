@@ -22,6 +22,10 @@ from datetime import datetime
 arcpy.env.addOutputsToMap = False                                          
 
 #------------------------------Global Constants-------------------------------#
+# Mean vector analysis algorithms
+MeanVectorAlgorithm = Literal["MEAD", "MEAD+Fisher", "K-means", "Bingham"]
+MEAN_VECTOR_ALGORITHMS = ['MEAD', 'MEAD+Fisher', 'K-means', 'Bingham']
+
 # Contour methods dictionary
 CONTOUR_METHODS = {
     'Kamb (no smoothing)': 'kamb',                               
@@ -308,7 +312,7 @@ def angles_clustering(
 
 class MeanVectorStats(TypedDict):
     # Algorithm name
-    algorithm: Literal["MEAD", "MEAD+Fisher", "K-means", "Bingham"]
+    algorithm: MeanVectorAlgorithm
     # Mean azimuth and dip values per cluster id
     vectors: dict[str, tuple[float, float]]
     # Mean resultant lengths per cluster id
@@ -1875,7 +1879,7 @@ class StereoPlots(_ToolBase):
         param19.filters[9].type = 'ValueList'
         param19.filters[10].type = 'Range'
         param19.filters[0].list = []
-        param19.filters[1].list = ['MEAD', 'MEAD+Fisher', 'K-means', 'Bingham']
+        param19.filters[1].list = MEAN_VECTOR_ALGORITHMS
         param19.filters[2].list = [1, 100]
         param19.filters[3].list = [0, 100]
         param19.filters[4].list = [0, 100]
