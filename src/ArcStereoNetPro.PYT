@@ -1496,8 +1496,8 @@ class RoseDiagrams(_ToolBase):
 
         # Set optional legend
         if Show_Legend.value:
-            hands, lbls = ax.get_legend_handles_labels()
-            by_lbl = {l: h for l, h in sorted(dict(zip(lbls, hands)).items())}
+            hdl, lbl = ax.get_legend_handles_labels()
+            by_lbl = dict(sorted(zip(lbl, hdl)))
             if len(by_lbl):
                 ax.legend(
                     handles=by_lbl.values(),
@@ -2602,7 +2602,7 @@ class StereoPlots(_ToolBase):
             hdl, lbl = ax.get_legend_handles_labels()
             hdl.extend(cones_proxy.values())
             lbl.extend(cones_proxy.keys())
-            by_lbl = {l: h for l, h in sorted(dict(zip(lbl, hdl)).items())}
+            by_lbl = dict(sorted(zip(lbl, hdl)))
             if len(by_lbl):
                 ax.legend(
                     handles=by_lbl.values(),
