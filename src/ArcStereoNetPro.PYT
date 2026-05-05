@@ -314,11 +314,11 @@ class MeanVectorStats(TypedDict):
     # Algorithm name
     algorithm: MeanVectorAlgorithm
     # Mean azimuth and dip values per cluster id
-    vectors: dict[str, tuple[float, float]]
+    vectors: dict[int, tuple[float, float]]
     # Mean resultant lengths per cluster id
-    r_means: dict[str, float]
+    r_means: dict[int, float]
     # Fisher statistics (R value, confidence radius, kappa) per cluster id
-    fisher_stats: dict[str, tuple[float, float, float]]
+    fisher_stats: dict[int, tuple[float, float, float]]
     # MEAD azimuth and dip tolerance values
     tol: tuple[float, float] | None
     # Fisher confidence
