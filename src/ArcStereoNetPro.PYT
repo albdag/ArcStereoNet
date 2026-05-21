@@ -1603,8 +1603,8 @@ class RoseDiagrams(_ToolBase):
             coords = arcpy.da.FeatureClassToNumPyArray(
                 in_table=Input_Feature.valueAsText,
                 field_names='Shape'
-            )        
-            clon, clat = np.nanmean(coords, axis=0)[0]
+            )
+            clon, clat = np.nanmean(coords['Shape'], axis=0)
             descr = arcpy.Describe(Input_Feature.valueAsText)
             with open(xy_path, 'w') as xyfile:
                 xyfile.write(f'{clon}\n')
@@ -2689,8 +2689,8 @@ class StereoPlots(_ToolBase):
             coords = arcpy.da.FeatureClassToNumPyArray(
                 in_table=Input_Feature.valueAsText,
                 field_names='Shape'
-            )        
-            clon, clat = np.nanmean(coords, axis=0)[0]
+            )
+            clon, clat = np.nanmean(coords['Shape'], axis=0)
             descr = arcpy.Describe(Input_Feature.valueAsText)
             with open(xy_path, 'w') as xyfile:
                 xyfile.write(f'{clon}\n')
