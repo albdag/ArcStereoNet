@@ -1,6 +1,13 @@
-#- - - - - - - - - - - - - I N I T I A L I Z A T I O N - - - - - - - - - - - - #
+"""
+ArcStereoNet Pro is a Python toolbox for ArcGIS Pro. Its main features include:
+ - Generate stereographic projections and rose diagrams within ArcGIS Pro.
+ - Analyze data with contouring, clustering and mean vector statistics.
+ - Link plots with their corresponding geographic position in map.
 
-#--------------------------Import Internal Libraries--------------------------#
+Author: @albdag
+Dependencies: arcpy, numpy, matplotlib, mplstereonet
+"""
+
 import arcpy
 import importlib.util
 import io
