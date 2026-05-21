@@ -720,6 +720,21 @@ class _ToolBase(object):
         """
 
         return importlib.util.find_spec(name) is not None
+    
+
+    def tempFilepath(self, file_name: str) -> str:
+        """Generate a temporary file path in the ArcGIS scratch folder.
+
+        Args:
+            file_name (str): Name of the temporary file, including extension.
+
+        Returns:
+            str: Full temporary file path.
+        """
+
+        scratch_folder = arcpy.env.scratchFolder
+        temp_path = path.join(scratch_folder, file_name)
+        return temp_path
 
 
     def _getRawValueTable(self, parameter: arcpy.Parameter) -> list[list]:
@@ -1579,7 +1594,7 @@ class RoseDiagrams(_ToolBase):
         if Save_Image.value:
             image_outpath = Image_Output.valueAsText
         else:
-            image_outpath = temp_filepath('RoseDiagram_temp.png')
+            image_outpath = self.tempFilepath('RoseDiagram_temp.png')
 
         root = path.splitext(image_outpath)[0]
         log_outpath = f'{root}_LOG.txt'
@@ -2669,7 +2684,7 @@ class StereoPlots(_ToolBase):
         if Save_Image.value:
             image_outpath = Image_Output.valueAsText
         else:
-            image_outpath = temp_filepath('StereoPlot_temp.png')
+            image_outpath = self.tempFilepath('StereoPlot_temp.png')
 
         root = path.splitext(image_outpath)[0]
         log_outpath = f'{root}_LOG.txt'
