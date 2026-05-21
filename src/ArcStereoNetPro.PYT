@@ -2325,20 +2325,12 @@ class StereoPlots(_ToolBase):
                 msg = f'Found both planar and linear data for type "{_type}".'
                 messages.addWarningMessage(f'Plot data: {msg}')
 
-            # Ensure tracking all plotted instances of _type
-            type_lbl = self.getUniqueLabel(_type, statistics.keys()) 
-
-            # Populate general statistics for _type data
-            statistics[type_lbl] = {
-                "n": len(strike if kind == 'planes' else trend),
-                "kind": kind,
-                "contour": [],
-                "clustering": []
-            }
-
             # Randomize color if required
             if _color == 'Random':
                 _color = np.random.choice(list(COLORS.keys()))
+
+            # Ensure all plotted instances of _type have unique labels
+            type_lbl = self.getUniqueLabel(_type, statistics.keys()) 
 
             # Add markers (poles to planes or line vectors) to plot
             if _marker != 'None':
@@ -2370,7 +2362,15 @@ class StereoPlots(_ToolBase):
                     ]
                 )
 
-        # Plot contour data
+            # Populate general statistics for _type data
+            statistics[_type] = {
+                "n": len(strike if kind == 'planes' else trend),
+                "kind": kind,
+                "contour": [],
+                "clustering": []
+            }
+
+        # Plot contour data - - - - - - - - - - - - - - - - - - - - - - - - - -
         contour_data = cd if (cd := Contour_Data.values) is not None else []
         n_contours = 0
         for _type, _method, _sigma, _style, _cmap, _alpha in contour_data:
