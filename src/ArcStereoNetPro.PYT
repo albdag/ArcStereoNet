@@ -135,212 +135,197 @@ NUM_FIELD_FILTERS = ['Short', 'Long', 'Single', 'Double']
 # Available output image file formats
 IMG_FORMATS = ['png', 'eps', 'pdf', 'pgf', 'ps', 'raw', 'rgba', 'svg', 'svgz']
 
-#- - - - - - - - - - - - U S E F U L  F U N C T I O N S - - - - - - - - - - - -#
 
-def temp_filepath(file_name: str) -> str:
-    """Generate a temporary file path in the ArcGIS scratch folder.
+#--------------------------------MEAD Algorithm-------------------------------#
+def cos_rad(angles: ArrayLike) -> NDArray[np.float64]:
+
+    """Return the cosines in radians of 'angles'.
 
     Args:
-        file_name (str): Name of the temporary file, including extension.
+        angles (ArrayLike): Angles in degrees.
 
     Returns:
-        str: Full temporary file path.
+        NDArray[np.float64]: Cosines in radians of 'angles'.
     """
-    scratch_folder = arcpy.env.scratchFolder
-    temp_path = path.join(scratch_folder, file_name)
-    return temp_path
 
-            
-def mead(*args, vectors: bool = True, **kwargs: dict[str, Any]):
-    # ATM only use it for StereoPlots, in future extend to RoseDiagrams
-    # if len(args) == 1:
-    #     args = (args[0], None)
+    return np.cos(np.radians(angles))
 
-    # Parse args
-    args = (a.tolist() for a in args)
+
+def sin_rad(angles: ArrayLike) -> NDArray[np.float64]:
+
+    """Return the sines in radians of 'angles'.
+
+    Args:
+        angles (ArrayLike): Angles in degrees.
+
+    Returns:
+        NDArray[np.float64]: Sines in radians of 'angles'.
+    """
+
+    return np.sin(np.radians(angles))
+
+
+def circle_median(angles: ArrayLike) -> float:
+
+    """Return the circumference median of 'angles', which takes into account
+    the 'wrap-around' effect of values in a circle.
+
+    Returns:
+        median (float): Median value.
+    """
+
+    unwrapped = np.unwrap(np.asarray(angles), period=360)
+    median = float(np.median(unwrapped) % 360)
+    return median
+
+
+def mead_clustering(
+    azms: ArrayLike,
+    incl: ArrayLike | None,
+    wgts: ArrayLike | None = None,
+    n_clusts: int | None = None,
+    azm_tol: float = 0.5,
+    inc_tol: float = 0.3,
+    measurement: Literal["lines", "poles"] = "poles"
+) -> tuple[list[NDArray[np.float64]], NDArray[np.float64]]:
     
-    # Parse kwargs
-    # mead_kwargs = { # future improvement
-    #     'wgts': self.kwargs.get('wgts', None),
-    #     'measurement': self.kwargs.get('measurement', 'poles'),
-    #     'n_clusts': self.kwargs.get('n_clusts', None),
-    #     'azm_tol': self.kwargs.get('azm_tol', 0.5),
-    #     'dip_tol': self.kwargs.get('inc_tol', 0.3)
-    # }
-    mead_kwargs = {
-        'measurement': kwargs.get('measurement', 'poles'),
-        'tol_str': kwargs.get('azm_tol', 0.5),
-        'tol_dip': kwargs.get('inc_tol', 0.3),
-        'n_clusts': kwargs.get('n_clusts', None),
-    }
+    """Cluster oriented data into 'n_clusts' number of clusters. Works for both
+    2D (e.g., lines) and 3D (e.g., planes) azimuthal data.
 
-    clusters = angles_clustering(*args, **mead_kwargs)
-    # clusters, _ = angles_clustering_new(a1, a2, **mead_kwargs) # future
-    mean_vect = []
-    r_means = []
-    for c in clusters:
-        azm, inc = zip(*c)
-        avg_azm, r_mean = avg_angle(azm)
-        # avg_inc = np.nan if a2 is None else np.mean(inc)
-        avg_inc = np.mean(inc)
-        mean_vect.append((avg_azm, avg_inc))
-        r_means.append(r_mean)
+    Args:
+        azms (ArrayLike): 1D array-like with azimuth data.
+        incl (ArrayLike | None): 1D array-like with inclination data. Use None
+            for rose diagram data. If provided, it must have same length of
+            'azms'.
+        wgts (ArrayLike | None, optional): 1D array-like with weight data. If 
+            provided, it must have same length of 'azms'. Defaults to None.
+        n_clusts (int | None, optional): Number of clusters. If non-positive or
+            None, it is set automatically. Defaults to None.
+        azm_tol (float, optional): Azimuth tolerance. It determines the minimum
+            azimuth distance for an angle to be considered part of a cluster.
+            Ranges in [0, 1]. Defaults to 0.5.
+        inc_tol (float, optional): Inclination tolerance. It determines the
+            minimum inclination distance for an angle to be considered part of
+            a cluster. Ranges in [0, 1]. Defaults to 0.3.
+        measurement (Literal["lines", "poles"], optional): Measurement type for
+            stereoplot data. If "lines", 'azms' and 'incl' are swapped.
+            Defaults to 'poles'.
+        
+    Returns:
+        clust, noise (tuple[list[NDArray[np.float64]], NDArray[np.float64]]):
+            List of clusters and unclustered noisy data. Arrays have shape Nx3
+            [(azms, incl, wgts), ...].
+    """
 
-    if vectors:
-        return clusters, mean_vect, r_means
-    else:
-        return clusters
+    # Force numpy arrays
+    azms = np.asarray(azms) 
+    incl = np.asarray(incl) if incl is not None else np.zeros(azms.shape)
+    wgts = np.asarray(wgts) if wgts is not None else np.ones(azms.shape)
 
-
-
-
-#- - - - - - - - - - - - M. E. A. D.  A L G O R I T H M - - - - - - - - - - - -#
-
-def cos_r(values):
-    return np.cos(np.radians(values))
-
-
-def sin_r(values):
-    return np.sin(np.radians(values))
-
-
-def linearize(values):
-    return [v if abs(v-min(values)) <= 180 else v-360 for v in values]
-
-
-def avg_angle(values, weights=None):
-
-    if weights == None:
-        weights = np.ones(len(values))
-    elif sum(weights) == 0:
-        return np.NaN, np.NaN
-
-    x = (cos_r(values)*weights).sum() / sum(weights)
-    y = (sin_r(values)*weights).sum() / sum(weights)
-
-    avg_deg = int(round(np.degrees(np.arctan2(y, x)) % 360, 0))
-    R_mean = np.sqrt(x**2 + y**2)
-
-    return avg_deg, R_mean
-
-
-def median_angles(values):
-
-    values_fix = linearize(values)
-    res = np.median(values_fix) % 360
-
-    return res
-
-
-def group_angles(angles, med_str, med_dip, tol_str, tol_dip):
-    grouped, excluded = [], []
-    gamma = True
-
-    while gamma:
-        gamma = False
-
-        for a in angles:
-            S, D = a
-
-            if (
-            abs(sin_r(S) - sin_r(med_str)) <= 2*tol_str and
-            abs(cos_r(S) - cos_r(med_str)) <= 2*tol_str and
-            abs(sin_r(D) - sin_r(med_dip)) <= tol_dip
-            ):
-
-                grouped.append(a)
-                angles.remove(a)
-                med_str = median_angles([g[0] for g in grouped])
-                med_dip = np.median([g[1] for g in grouped])
-                gamma = True
-
-
-    for g in grouped:                                                           # post-grouping cleaning of data.
-            S, D = g
-
-            if (
-            abs(sin_r(S) - sin_r(med_str)) > 2*tol_str or
-            abs(cos_r(S) - cos_r(med_str)) > 2*tol_str or
-            abs(sin_r(D) - sin_r(med_dip)) > tol_dip
-            ):
-                excluded.append(g)
-                grouped.remove(g)
-
-    excluded.extend(angles)
-    return grouped, excluded
-
-
-def angles_clustering(
-        strikes: list,
-        dips: list,
-        measurement: Literal['lines', 'poles'] = 'poles',
-        tol_str: float = 0.5,
-        tol_dip: float = 0.3,
-        n_clusts: int | None = None
-    ):
-
-    # In the future modify function to work with numpy arrays?.
-
+    # Swap azimuth and inclination if working with vector line data
     if measurement == 'lines':
-        strikes, dips = dips, strikes
+        azms, incl = incl, azms
 
-    max_Sfreq = float(max([strikes.count(s) for s in strikes]))
-    norm_Sfreq = {s: round(strikes.count(s)/max_Sfreq, 3) for s in strikes}
-    max_Dfreq = float(max([dips.count(d) for d in dips]))
-    norm_Dfreq = {d: round(dips.count(d)/max_Dfreq, 3) for d in dips}
+    # Get max-normalized angles frequencies (e.g., {90°: 0.75, 36°: 0.24, ...})
+    azm_unq, azm_cnt = np.unique(azms, return_counts=True)
+    inc_unq, inc_cnt = np.unique(incl, return_counts=True)
+    azm_freq = dict(zip(azm_unq, azm_cnt / azm_cnt.max()))
+    inc_freq = dict(zip(inc_unq, inc_cnt / inc_cnt.max()))
+    
+    # Group unclustered azimuth-inclination-weights triplets in an array with
+    # shape Nx3, sorted by the sum of azimuth + inclination frequencies
+    # (descending), and multiplied by normalized weights values
+    freq = np.array([(azm_freq[a], inc_freq[i]) for a, i in zip(azms, incl)])
+    sort_idx = np.argsort(-freq.sum(axis=1) * wgts / wgts.max())
+    data = np.column_stack((azms, incl, wgts))[sort_idx]
 
-    angles = [(s, d) for s,d in zip(strikes, dips)]
+    # Iteratively extract and cluster oriented data  
+    clusters: list[NDArray[np.float64]] = []
+    while len(data):
+        # Pre-compute sin and cos of azimuth, and sin of inclination (radians)
+        sin_azm = sin_rad(data[:, 0])
+        cos_azm = cos_rad(data[:, 0])
+        sin_inc = sin_rad(data[:, 1])
 
-    families = []
-    SDfreq_tresh = 2.000
-
-    while SDfreq_tresh > 0.000:
-        for a in angles:
-            if norm_Sfreq[a[0]] + norm_Dfreq[a[1]] == SDfreq_tresh:
-                grouped, excluded = group_angles(angles, a[0], a[1], tol_str, tol_dip)
-                break
-
-        try:
-            angles = excluded
-
-            if len(grouped) > 0:
-                families.append([(g[0], g[1]) for g in grouped])
-                grouped = []
-            else:
-                raise UnboundLocalError
-
-        except UnboundLocalError:
-            SDfreq_tresh = round(SDfreq_tresh - 0.001, 3)
-
-
-
-    spurious = angles
-
-    if n_clusts == None:
-        for fam in families[:]:
-            if len(fam) < len(max(families, key=len))/3.0:                      # 1/3 of main family ("dead" if, may be useful for future updates)
-                spurious.extend(fam)
-                families.remove(fam)
-
-    else:                                                                       # Number of clusts selected by user
+        # Keep track of current cluster's median values to avoid infinite loops
+        median_azm, median_inc = data[0, :-1]
+        median_history = [(median_azm, median_inc)]
+        clust: NDArray[np.float64] = np.array([])
         while True:
-            try:
-                spurious.extend(sorted(families, key=len, reverse=True)[n_clusts:])
-                families = sorted(families, key=len, reverse=True)[:n_clusts]
-                if min([len(f) > 1 for f in families]) == True:
-                    break
-                else:
-                    raise IndexError
-            except IndexError:
-                n_clusts -= 1
-            except ValueError:  # Raises when families is an empty list
-                return []
+            # Define condition for angles to be part of the cluster
+            mask1 = np.abs(sin_azm - sin_rad(median_azm)) <= 2 * azm_tol
+            mask2 = np.abs(cos_azm - cos_rad(median_azm)) <= 2 * azm_tol
+            mask3 = np.abs(sin_inc - sin_rad(median_inc)) <= inc_tol
+            condition = mask1 & mask2 & mask3
+
+            # Update cluster and azimuth/inclination median values
+            clust = data[condition]
+            median_azm = float(circle_median(clust[:, 0]))
+            median_inc = float(np.median(clust[:, 1]))
+
+            # Check condition for exiting the loop
+            if (median_azm, median_inc) in median_history:
+                break
+            median_history.append((median_azm, median_inc))
+        
+        # Add cluster to cluster list and prepare data for next iteration
+        clusters.append(clust)
+        data = data[~condition] # only keep excluded angles
+
+    # Sort clusters by size (descending)
+    clusters.sort(key=len, reverse=True)
+
+    # If invalid, set n_clusts with max size difference of consecutive clusters
+    # Otherwise, ensure that n_clusts is not bigger than total clusters
+    if n_clusts is None or n_clusts < 1:
+        diff = np.diff([len(c) for c in clusters])
+        n_clusts = int(np.argmin(diff) if len(diff) else 0) + 1
+    else: 
+        n_clusts = min(len(clusters), n_clusts)
+
+    # Merge residual clusters into a singular "noise" data array
+    residuals = clusters[n_clusts:]
+    noise = np.vstack(residuals) if residuals else np.empty((0, 2))
+
+    return clusters[:n_clusts], noise
 
 
+def mead_mean_vectors(
+    mead_clusters: list[NDArray[np.float64]]
+) -> tuple[list[tuple[float, float]], list[float]]:
+    
+    """Extract mean vector statistics from clustered data. Requires a list of
+    clusters as returned by the 'mead_clustering' function.
 
-    return families                                                             # "return families, spurious" to also obtain spurious values list
+    Args:
+        mead_clusters (list[NDArray[np.float64]]): List of clustered data. Each
+            cluster array must have shape Nx3 [(azms, incl, wgts), ...]. See
+            'mead_clustering' function for more details.
+
+    Returns:
+        mean_vect, r_means (tuple[list[tuple[float, float]], list[float]]): 
+        List of azimuth-inclination couples for each cluster and list of R mean
+        values for each cluster.
+    """
+
+    mean_vect, r_means = [], []
+    for c in mead_clusters:
+        azm, inc, wgt = zip(*c)
+        # Average azimuth and R mean
+        x = (cos_rad(azm) * wgt).sum() / sum(wgt) # can cause ZeroDivisionError
+        y = (sin_rad(azm) * wgt).sum() / sum(wgt) # can cause ZeroDivisionError
+        avg_azm = np.degrees(np.arctan2(y, x)) % 360
+        r_mean = np.sqrt(x**2 + y**2)
+        # Average inclination
+        avg_inc = np.mean(inc)
+        # Store statistics
+        mean_vect.append((avg_azm, avg_inc))
+        r_means.append(r_mean) # consider calculation of R-mean including inclinations
+
+    return mean_vect, r_means
 
 
+#-----------------------------Statistics handlers-----------------------------#
 class MeanVectorStats(TypedDict):
     # Algorithm name
     algorithm: MeanVectorAlgorithm
@@ -1476,44 +1461,45 @@ class RoseDiagrams(_ToolBase):
                 linewidth=0.5
             )
 
-            # Compute mean vector(s) if required
-            mean_vector_stats: list[MeanVectorStats] = []
-            if _mean_vect == 'YES':
+            # Populate general statistics for _type data
+            if _type not in statistics.keys():
+                statistics[_type] = {
+                    "n": len(azimuth),
+                    "kind": "lines",
+                    "contour": [],
+                    "clustering": []
+                }
 
-                # Initialize MEAD statistics
-                mead_stats: MeanVectorStats = {
+            # Compute mean vector(s) if required
+            if _mean_vect == 'YES':
+                mead_clusters, _ = mead_clustering(
+                    azms=azimuth,
+                    incl=None,
+                    wgts=weights,
+                    n_clusts=_nclusts,
+                    azm_tol=_azm_tol / 100
+                )
+                vect, r_means = mead_mean_vectors(mead_clusters)
+
+                # Populate mean vector statistics
+                mean_vector_stats: MeanVectorStats = {
                     "algorithm": "MEAD",
-                    "vectors": {},
-                    "r_means": {},
+                    "vectors": dict(enumerate(vect)),
+                    "r_means": dict(enumerate(r_means)),
                     "fisher_stats": {},
                     "tol": (_azm_tol, np.nan),
                     "conf": None
                 }
-                
-                # Treat weights as dips data and set the dip tolerance to 100%
-                # so that the output couples will be (azimuth-weight) and the
-                # weight info for each azimuth value is preserved and used in 
-                # avg_angle function
-                mead_clusters = angles_clustering(
-                    azimuth.tolist(),
-                    weights.tolist() if weights is not None else [1] * len(azimuth),
-                    tol_str=_azm_tol / 100,
-                    tol_dip=1,                       
-                    n_clusts=_nclusts
-                )               
 
-                # Add arrows to plot indicating mean vector(s) for each cluster                                        
-                for i, cluster in enumerate(mead_clusters, start=1):
-                    azm, wgt = zip(*cluster)
-                    avg_deg, r_mean = avg_angle(azm, wgt)
-
+                # Add arrows to plot indicating mean vector(s) for each cluster
+                for (avg_azm, _), r_mean in zip(vect, r_means):
                     sign = 1
                     for _ in range(1 + Mirrored.value):
                         ax.quiver(
                             0,
                             0,
-                            sign * sin_r(avg_deg),
-                            sign * cos_r(avg_deg),
+                            sign * sin_rad(avg_azm),
+                            sign * cos_rad(avg_azm),
                             scale=2 / r_mean,
                             width=0.01,
                             facecolor=COLORS.get(_color),
@@ -1522,20 +1508,8 @@ class RoseDiagrams(_ToolBase):
                         )
                         sign = -1
 
-                    # Update MEAD statistics for i-th cluster 
-                    mead_stats["vectors"][i] = (avg_deg, np.nan)
-                    mead_stats["r_means"][i] = r_mean
-
-                # Add MEAD statistics to mean vector statistics
-                mean_vector_stats.append(mead_stats)
-
-            # Populate overall statistics for _type data
-            statistics[type_lbl] = {
-                "n": len(azimuth),
-                "kind": "lines",
-                "contour": [],
-                "clustering": mean_vector_stats
-            }
+                # Populate clustering statistics
+                statistics[_type]["clustering"].append(mean_vector_stats)
 
         # PLOT FINALIZATION ---------------------------------------------------
         # Set radial gridlines and labels
@@ -2500,10 +2474,12 @@ class StereoPlots(_ToolBase):
                         'azm_tol': _azm_tol / 100,
                         'inc_tol': _inc_tol / 100
                     }
-                    mead_clusters, vect, _ = mead(*args, **kwargs)
+                    mead_clusters, _ = mead_clustering(*args, **kwargs)
+                    vect, r_means = mead_mean_vectors(mead_clusters)
 
                     mean_vector_stats["vectors"] = dict(enumerate(vect))
                     mean_vector_stats["tol"] = (_azm_tol, _inc_tol)
+                    # mean_vector_stats["r_means"] = dict(enumerate(r_means)) # we need to include contribution of inclinations
 
                 case 'MEAD+Fisher':
                     mead_kwargs = {
@@ -2519,9 +2495,9 @@ class StereoPlots(_ToolBase):
                     
                     vect = {}
                     fisher_stats: dict[int, tuple[float, float, float]] = {}
-                    mead_clusters = mead(*args, vectors=False, **mead_kwargs)
+                    mead_clusters, _ = mead_clustering(*args, **mead_kwargs)
                     for i, cluster in enumerate(mead_clusters):
-                        azm, inc = zip(*cluster)
+                        azm, inc, _ = zip(*cluster)
                         if measurement == 'poles':
                             pb_vect, stats = msn.find_fisher_stats(
                                 azm, inc, **fisher_kwargs
@@ -2574,7 +2550,7 @@ class StereoPlots(_ToolBase):
                     'markersize': _msize * 1.5
                 }
                 for i, cluster in enumerate(mead_clusters, start=1):           # type: ignore[reportPossiblyUnboundVariable]
-                    azm, inc = zip(*cluster)
+                    azm, inc, _ = zip(*cluster)
                     if measurement == 'poles':
                         ax.pole(azm, inc, marker=f'${i}$', **kwargs)
                     else:
