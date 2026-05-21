@@ -2654,7 +2654,7 @@ class StereoPlots(_ToolBase):
             hdl, lbl = ax.get_legend_handles_labels()
             hdl.extend(cones_proxy.values())
             lbl.extend(cones_proxy.keys())
-            by_lbl = dict(sorted(zip(lbl, hdl)))
+            by_lbl = dict(sorted(zip(lbl, hdl), key=lambda x: x[0]))
             if len(by_lbl):
                 ax.legend(
                     handles=by_lbl.values(),
