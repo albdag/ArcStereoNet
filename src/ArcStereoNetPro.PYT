@@ -2473,7 +2473,7 @@ class StereoPlots(_ToolBase):
             match _algorithm:
                 case 'Bingham':
                     vect = msn.fit_girdle(*args, measurement=measurement)
-                    mean_vector_stats["vectors"] = {1: vect}
+                    mean_vector_stats["vectors"] = {0: vect}
 
                 case 'K-means':
                     kwargs = {'num': _nclusts, 'measurement': measurement}
@@ -2520,7 +2520,7 @@ class StereoPlots(_ToolBase):
                     vect = {}
                     fisher_stats: dict[int, tuple[float, float, float]] = {}
                     mead_clusters = mead(*args, vectors=False, **mead_kwargs)
-                    for i, cluster in enumerate(mead_clusters, start=1):
+                    for i, cluster in enumerate(mead_clusters):
                         azm, inc = zip(*cluster)
                         if measurement == 'poles':
                             pb_vect, stats = msn.find_fisher_stats(
