@@ -2346,7 +2346,7 @@ class StereoPlots(_ToolBase):
                     ax.line(plunge, trend, label=type_lbl, **kwargs)
             
             # Add cyclographic traces to plot
-            if _line != 'NONE':
+            if _line != 'NONE' and kind == 'planes':
                 ax.plane(
                     strike=strike,
                     dip=dip,
