@@ -1606,10 +1606,11 @@ class RoseDiagrams(_ToolBase):
             )
             clon, clat = np.nanmean(coords['Shape'], axis=0)
             descr = arcpy.Describe(Input_Feature.valueAsText)
+            sr: arcpy.SpatialReference = descr.spatialReference
             with open(xy_path, 'w') as xyfile:
                 xyfile.write(f'{clon}\n')
                 xyfile.write(f'{clat}\n')
-                xyfile.write(f'{path.join(descr.path, descr.name)}\n')
+                xyfile.write(f'{sr.factoryCode}\n')
 
         # Auto-show image (and optionally log file) if image is temporary
         else: # add a dedicated boolean parameter to enable auto-show?
@@ -2692,10 +2693,11 @@ class StereoPlots(_ToolBase):
             )
             clon, clat = np.nanmean(coords['Shape'], axis=0)
             descr = arcpy.Describe(Input_Feature.valueAsText)
+            sr: arcpy.SpatialReference = descr.spatialReference
             with open(xy_path, 'w') as xyfile:
                 xyfile.write(f'{clon}\n')
                 xyfile.write(f'{clat}\n')
-                xyfile.write(f'{path.join(descr.path, descr.name)}\n')
+                xyfile.write(f'{sr.factoryCode}\n')
 
         # Auto-show image (and optionally log file) if image is temporary
         else: # add a dedicated boolean parameter to enable auto-show?
@@ -2706,8 +2708,6 @@ class StereoPlots(_ToolBase):
         return
 
 
-
-#- - - - - - - G  R  A  P  H    T  O    H  Y  P  E  R  L  I  N  K - - - - - - -#
 
 class GraphToHyperlink(_ToolBase):
 
@@ -2783,7 +2783,7 @@ class GraphToHyperlink(_ToolBase):
                 xy_path = path.splitext(str(img_path))[0] + '_xy.txt'
                 if not path.exists(xy_path):
                     err = f'Unable to find coordinates file for {img_path}.'
-                    parameters[0].setErrorMessage(err)
+                    Input_Plots.setErrorMessage(err)
                     break
 
         return
@@ -2791,60 +2791,57 @@ class GraphToHyperlink(_ToolBase):
 
     def isLicensed(self):
 
-        """Set whether tool is licensed to execute."""
+        """Set whether tool is licensed to execute.
+
+        Returns:
+            bool: Whether tool is licensed.
+        """
 
         return True
 
 
+    def execute(self, parameters: list[arcpy.Parameter], messages) -> None:
 
-#- - - - - - - - - - - - - T O O L  E X E C U T I O N - - - - - - - - - - - - -#
+        """The source code of the tool.
 
-    def execute(self, parameters, messages):
+        Args:
+            parameters (list[arcpy.Parameter]): Tool's parameters.
+            messages: Tool's messages.
+        """
 
-        """The source code of the tool."""
+        # Get Parameters
+        Input_Plots = parameters[0]
+        Output_Feature = parameters[1]
 
+        # Initialize output feature class rows and input spatial references
+        # 'fc_rows' scheme: [( (lon, lat), plot image filepath ), ...]
+        # 'sr_wkid' scheme: {WKID, ...}
+        fc_rows: list[tuple[tuple[float, float], str]] = []
+        sr_wkid: set[int] = set()
 
-#---------------------------Parameters assignation-----------------------------#
-
-        IN_PLOT = parameters[0]
-        OUT_FC = parameters[1]
-
-
-
-#------------------Creation of the new output feature class--------------------#
-
-        rows = []
-        sr = []                                                                 # sr = Spatial Reference
-
-        for plot_img in IN_PLOT.values:
-
-            xy_file = path.splitext(str(plot_img))[0] + '_xy.txt'
+        # Populate 'fc_rows' and 'sr' with data from input plots
+        for plot in Input_Plots.values:
+            xy_file = f'{path.splitext(str(plot))[0]}_xy.txt'
             with io.open(xy_file, 'r') as temp_xy:
-                lon, lat, source_path = temp_xy.readlines()                
-                lon, lat = float(lon), float(lat)
-                sr.append(arcpy.Describe(source_path).spatialReference)
-                rows.append(((lon, lat), str(plot_img)))
+                lon, lat, wkid = temp_xy.readlines()                
+                fc_rows.append(((float(lon), float(lat)), str(plot)))
+                sr_wkid.add(int(wkid))
 
-        out_path, out_name = path.split(OUT_FC.valueAsText)
-        # Set SR to None if multiple SR are found (and send warning)
-        if len({s.exporttostring() for s in sr}) == 1:
-            spat_ref = sr[0]
-        else:
-            spat_ref = None
+        # Set WKID to None if multiple WKIDs are found, and send warning
+        wkid = None if len(sr_wkid) > 1 else sr_wkid.pop()
+        if wkid is None:
             messages.addWarningMessage('Found conflicting SR: set to Unknown!')
-        arcpy.CreateFeatureclass_management(out_path, out_name, "POINT",
-                                            spatial_reference=spat_ref)
-        arcpy.AddField_management(OUT_FC.valueAsText, "Plot", "TEXT")
         
+        # Create and populate output feature class
+        arcpy.CreateFeatureclass_management(
+            *path.split(Output_Feature.valueAsText),
+            geometry_type='POINT',
+            spatial_reference=arcpy.SpatialReference(wkid)
+        )
+        arcpy.AddField_management(Output_Feature.valueAsText, "Plot", "TEXT")
         fields = ["SHAPE@XY", "Plot"]
-        with arcpy.da.InsertCursor(OUT_FC.valueAsText, fields) as curs:
-            for row in rows:
+        with arcpy.da.InsertCursor(Output_Feature.valueAsText, fields) as curs:
+            for row in fc_rows:
                 curs.insertRow(row)
 
-
-
         return
-
-
-
-
