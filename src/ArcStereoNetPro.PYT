@@ -1472,7 +1472,8 @@ class RoseDiagrams(_ToolBase):
                 align='center',
                 color=COLORS.get(_color),
                 edgecolor='w' if _color == 'Black' else 'k', # TODO make outline lightgray when color is black
-                label=type_lbl
+                label=type_lbl,
+                linewidth=0.5
             )
 
             # Compute mean vector(s) if required
@@ -1516,8 +1517,8 @@ class RoseDiagrams(_ToolBase):
                             scale=2 / r_mean,
                             width=0.01,
                             facecolor=COLORS.get(_color),
-                            edgecolor='black' if _color == 'Red' else 'red',
-                            linewidth=1.25
+                            edgecolor='w' if _color == 'Black' else 'k',
+                            linewidth=1
                         )
                         sign = -1
 
