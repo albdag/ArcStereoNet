@@ -1184,7 +1184,7 @@ class RoseDiagrams(_ToolBase):
         # BIN SIZE (param15) --------------------------------------------------
         param15 = arcpy.Parameter(
             name='bin_size',
-            displayName='Bin Size',
+            displayName='Bin Size (degrees)',
             direction='Input', 
             datatype='GPLong',
             parameterType='Optional',
@@ -1197,7 +1197,7 @@ class RoseDiagrams(_ToolBase):
         # TICK SPACING (param16) ----------------------------------------------
         param16 = arcpy.Parameter(
             name='tick_spacing',
-            displayName='Tick Spacing',
+            displayName='Tick Spacing (degrees)',
             direction='Input', 
             datatype='GPLong',
             parameterType='Optional',
@@ -1207,35 +1207,38 @@ class RoseDiagrams(_ToolBase):
         param16.filter.list = [1, 360]                                         # type: ignore[reportOptionalMemberAccess]
         param16.value = 10
 
-        # RADIAL LABELS ANGLE (param17) ---------------------------------------
+        # RADIAL LABELS PROPERTIES (param17) ----------------------------------
         param17 = arcpy.Parameter(
-            name='radial_labels_angle',
-            displayName='Labels Angle',
+            name='radial_labels_properties',
+            displayName='Radial Labels Properties',
             direction='Input',
-            datatype='GPLong',
+            datatype='GPValueTable',
             parameterType='Optional',
             category='Plot Customization'
         )
-        param17.filter.type = 'Range'                                          # type: ignore[reportOptionalMemberAccess]
-        param17.filter.list = [0, 360]                                         # type: ignore[reportOptionalMemberAccess]
-        param17.value = 0
-
-        # GRID SPACE (param18) ------------------------------------------------
-        param18 = arcpy.Parameter(
-            name='grid_space',
-            displayName='Set Grid Space',
-            direction='Input',
-            datatype='GPLong',
-            parameterType='Optional',
-            category='Plot Customization'
-        )
-        param18.value = 8
+        param17.controlCLSID = '{1A1CA7EC-A47A-4187-A15C-6EDBA4FE0CF7}'
+        param17.columns = [
+            ['GPLong', 'Number of Labels'],
+            ['GPLong', 'Orientation (degrees)'],
+            ['GPDouble', 'Font Size'],
+            ['GPLong', 'Decimal Places'],
+            ['GPBoolean', 'Scientific Notation']
+        ]
+        param17.filters[0].type = 'Range'
+        param17.filters[1].type = 'Range'
+        param17.filters[2].type = 'Range'
+        param17.filters[3].type = 'Range'
+        param17.filters[0].list = [2, 20]
+        param17.filters[1].list = [0, 360]
+        param17.filters[2].list = [0.0, 100.0]
+        param17.filters[3].list = [0, 6]
+        param17.values = [[8, 0, 8, 2, False]]
 
         # Parameters list
         parameters = [
             param0, param1, param2, param3, param4, param5, param6, param7,
             param8, param9, param10, param11, param12, param13, param14, 
-            param15, param16, param17, param18
+            param15, param16, param17
         ]
         return parameters
 
@@ -1401,8 +1404,7 @@ class RoseDiagrams(_ToolBase):
         Write_Log = parameters[14]
         Bin_Size = parameters[15]
         Tick_Spacing = parameters[16]
-        Radial_Labels_Angle = parameters[17]
-        Grid_Space = parameters[18]
+        Radial_Labels_Properties = parameters[17]
 
         # PLOT INITIALIZATION -------------------------------------------------
         # Create figure with polar ax
@@ -1532,14 +1534,13 @@ class RoseDiagrams(_ToolBase):
 
         # PLOT FINALIZATION ---------------------------------------------------
         # Set radial gridlines and labels
-        radii = np.linspace(0, max_bar_length, Grid_Space.value)
-        fmt = '%.2e' if radii[1] <= 10**-3 or radii[-1] >= 10**6 else '%.2f'
+        n_lbls, orient, fsize, dec, scient = Radial_Labels_Properties.values[0] 
+        radii = np.linspace(0, max_bar_length, n_lbls)
         ax.set_rgrids(
             radii=radii,
-            angle=Radial_Labels_Angle.value,
-            fmt=fmt,
-            weight='semibold',
-            size=10,
+            angle=orient,
+            fmt=f"%.{dec}{'e' if scient else 'f'}",
+            size=fsize,
             color='white',
             path_effects=[mpe.withStroke(linewidth=2, foreground='k')]
         )
