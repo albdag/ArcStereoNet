@@ -2545,8 +2545,9 @@ class StereoPlots(_ToolBase):
             # Add track MEAD clustering to plot if required
             if Track_Mead.value and 'MEAD' in _algorithm:
                 kwargs = {
-                    'color': 'k',
-                    'markeredgecolor': COLORS.get(_color),
+                    'color': COLORS.get(_color),
+                    'markeredgecolor': '0.8' if _color == 'Black' else '0',
+                    'markeredgewidth': _lwidth * 0.5, 
                     'markersize': _msize * 1.5
                 }
                 for i, cluster in enumerate(mead_clusters, start=1):           # type: ignore[reportPossiblyUnboundVariable]
