@@ -71,6 +71,10 @@ CONTOUR_COLORMAPS = {
     "Yellow-Green-Blue": "YlGnBu",
     "Yellow-Green": "YlGn",
 }
+
+# Allowed rose diagram's bin sizes
+BIN_SIZES = [x for x in range(1, 121) if 360 % x == 0]
+
 # Compass labels dictionary
 COMPASS_LABELS = {
     'Cardinals': ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'),
@@ -1177,8 +1181,21 @@ class RoseDiagrams(_ToolBase):
 		)
         param14.value = False
 
-        # TICK SPACING (param15) ----------------------------------------------
+        # BIN SIZE (param15) --------------------------------------------------
         param15 = arcpy.Parameter(
+            name='bin_size',
+            displayName='Bin Size',
+            direction='Input', 
+            datatype='GPLong',
+            parameterType='Optional',
+            category='Plot Customization'
+        )
+        param15.filter.type = 'ValueList'                                      # type: ignore[reportOptionalMemberAccess]
+        param15.filter.list = BIN_SIZES                                        # type: ignore[reportOptionalMemberAccess]
+        param15.value = 10
+
+        # TICK SPACING (param16) ----------------------------------------------
+        param16 = arcpy.Parameter(
             name='tick_spacing',
             displayName='Tick Spacing',
             direction='Input', 
@@ -1186,12 +1203,12 @@ class RoseDiagrams(_ToolBase):
             parameterType='Optional',
             category='Plot Customization'
         )
-        param15.filter.type = 'Range'                                          # type: ignore[reportOptionalMemberAccess]
-        param15.filter.list = [1, 360]                                         # type: ignore[reportOptionalMemberAccess]
-        param15.value = 10
+        param16.filter.type = 'Range'                                          # type: ignore[reportOptionalMemberAccess]
+        param16.filter.list = [1, 360]                                         # type: ignore[reportOptionalMemberAccess]
+        param16.value = 10
 
-        # RADIAL LABELS ANGLE (param16) ---------------------------------------
-        param16 = arcpy.Parameter(
+        # RADIAL LABELS ANGLE (param17) ---------------------------------------
+        param17 = arcpy.Parameter(
             name='radial_labels_angle',
             displayName='Labels Angle',
             direction='Input',
@@ -1199,12 +1216,12 @@ class RoseDiagrams(_ToolBase):
             parameterType='Optional',
             category='Plot Customization'
         )
-        param16.filter.type = 'Range'                                          # type: ignore[reportOptionalMemberAccess]
-        param16.filter.list = [0, 360]                                         # type: ignore[reportOptionalMemberAccess]
-        param16.value = 0
+        param17.filter.type = 'Range'                                          # type: ignore[reportOptionalMemberAccess]
+        param17.filter.list = [0, 360]                                         # type: ignore[reportOptionalMemberAccess]
+        param17.value = 0
 
-        # GRID SPACE (param17) ------------------------------------------------
-        param17 = arcpy.Parameter(
+        # GRID SPACE (param18) ------------------------------------------------
+        param18 = arcpy.Parameter(
             name='grid_space',
             displayName='Set Grid Space',
             direction='Input',
@@ -1212,13 +1229,13 @@ class RoseDiagrams(_ToolBase):
             parameterType='Optional',
             category='Plot Customization'
         )
-        param17.value = 8
+        param18.value = 8
 
         # Parameters list
         parameters = [
             param0, param1, param2, param3, param4, param5, param6, param7,
             param8, param9, param10, param11, param12, param13, param14, 
-            param15, param16, param17
+            param15, param16, param17, param18
         ]
         return parameters
 
@@ -1382,9 +1399,10 @@ class RoseDiagrams(_ToolBase):
         Weighted = parameters[12]
         Weight_Field = parameters[13]
         Write_Log = parameters[14]
-        Tick_Spacing = parameters[15]
-        Radial_Labels_Angle = parameters[16]
-        Grid_Space = parameters[17]
+        Bin_Size = parameters[15]
+        Tick_Spacing = parameters[16]
+        Radial_Labels_Angle = parameters[17]
+        Grid_Space = parameters[18]
 
         # PLOT INITIALIZATION -------------------------------------------------
         # Create figure with polar ax
@@ -1426,7 +1444,8 @@ class RoseDiagrams(_ToolBase):
             weights = filtered[fields[2]] if Weighted.value else None
 
             # Compute histogram
-            bins = np.arange(-5, 366, 10)
+            half_bin = Bin_Size.value / 2
+            bins = np.arange(-half_bin, 361 + half_bin, Bin_Size.value)
             hist, _ = np.histogram(azimuth, bins, weights=weights)
 
             # Wrap around circular histogram data
@@ -1450,9 +1469,9 @@ class RoseDiagrams(_ToolBase):
 
             # Add histogram data to plot
             ax.bar(
-                x=np.radians(np.arange(0, 360, 10)),
+                x=np.radians(np.arange(0, 360, Bin_Size.value)),
                 height=hist,
-                width=np.radians(10),
+                width=np.radians(Bin_Size.value),
                 bottom=0.0,
                 align='center',
                 color=COLORS.get(_color),
