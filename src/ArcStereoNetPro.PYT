@@ -1435,7 +1435,7 @@ class RoseDiagrams(_ToolBase):
 
             # Format histogram data for mirrored diagram, if required
             if Mirrored.value:
-                half = np.sum(np.split(hist, 2), axis=0)
+                half = max(np.split(hist, 2), key=np.sum)
                 hist = np.concatenate([half, half])
 
             # Update maximum bar lenght
