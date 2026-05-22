@@ -1456,7 +1456,7 @@ class RoseDiagrams(_ToolBase):
                 bottom=0.0,
                 align='center',
                 color=COLORS.get(_color),
-                edgecolor='w' if _color == 'Black' else 'k', # TODO make outline lightgray when color is black
+                edgecolor='0.8' if _color == 'Black' else '0',
                 label=type_lbl,
                 linewidth=0.5
             )
@@ -1503,7 +1503,7 @@ class RoseDiagrams(_ToolBase):
                             scale=2 / r_mean,
                             width=0.01,
                             facecolor=COLORS.get(_color),
-                            edgecolor='w' if _color == 'Black' else 'k',
+                            edgecolor='0.8' if _color == 'Black' else '0',
                             linewidth=1
                         )
                         sign = -1
@@ -2311,7 +2311,7 @@ class StereoPlots(_ToolBase):
                 kwargs = {
                     'color': COLORS.get(_color),
                     'marker': MARKERS.get(_marker),
-                    'markeredgecolor': 'w' if _color == 'Black' else 'k', # TODO make outline lightgray when color is black
+                    'markeredgecolor': '0.8' if _color == 'Black' else '0',
                     'markersize': _msize
                 }
                 if kind == 'planes':
@@ -2331,7 +2331,7 @@ class StereoPlots(_ToolBase):
                     path_effects=[
                         mpe.withStroke(
                             linewidth=_lwidth * 2,
-                            foreground='w' if _color == 'Black' else 'k'
+                            foreground='0.8' if _color == 'Black' else '0'
                         )
                     ]
                 )
@@ -2566,7 +2566,7 @@ class StereoPlots(_ToolBase):
                 kwargs = {
                     'color': COLORS.get(_color),
                     'marker': MARKERS.get(_marker),
-                    'markeredgecolor': 'w' if _color == 'Black' else 'k', #TODO use lightgray instead of w
+                    'markeredgecolor': '0.8' if _color == 'Black' else '0',
                     'markersize': _msize
                 }
                 if measurement == 'poles' or _algorithm == 'Bingham': 
@@ -2591,7 +2591,7 @@ class StereoPlots(_ToolBase):
                     path_effects=[
                         mpe.withStroke(
                             linewidth=_lwidth * 2,
-                            foreground='w' if _color == 'Black' else 'k'
+                            foreground='0.8' if _color == 'Black' else '0'
                         )
                     ]
                 )
