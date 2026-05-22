@@ -404,3 +404,6 @@ src/ArcStereoNetPro.PYT.xml
 src/ArcStereoNetPro.StereoPlots.pyt.xml
 src/ArcStereoNetPro.RoseDiagrams.pyt.xml
 src/ArcStereoNetPro.GraphToHyperlink.pyt.xml
+
+# Dev-only scripts
+test.py
