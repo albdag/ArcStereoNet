@@ -8,29 +8,36 @@ Author: @albdag
 Dependencies: arcpy, numpy, matplotlib, mplstereonet
 """
 
+
+#------------------------------Importing modules------------------------------#
 import arcpy
+
 import importlib.util
 import io
+import os
 import re
 import shlex
+from datetime import datetime
+from typing import Any, Iterable, Literal, TypedDict
+
+import numpy as np
+from numpy.typing import ArrayLike, NDArray
+
+import matplotlib.patheffects as mpe
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.contour import QuadContourSet
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.projections.polar import PolarAxes
 # matplotlib.use('TkAgg') use for interactive plots with plt.show()
-import matplotlib.patheffects as mpe
-import numpy as np
-from numpy.typing import ArrayLike, NDArray
-from typing import Any, Iterable, Literal, TypedDict
-from os import path, startfile
-from datetime import datetime
+
 
 #-----------------------------Environment Settings----------------------------#
 # Prevent adding output image to Contents pane
 arcpy.env.addOutputsToMap = False                                          
 
-#------------------------------Global Constants-------------------------------#
+
+#-----------------------------------Globals-----------------------------------#
 # Mean vector analysis algorithms
 MeanVectorAlgorithm = Literal["MEAD", "MEAD+Fisher", "K-means", "Bingham"]
 MEAN_VECTOR_ALGORITHMS = ['MEAD', 'MEAD+Fisher', 'K-means', 'Bingham']
@@ -354,8 +361,6 @@ class StatItem(TypedDict):
     # Clustering data = list of MeanVectorStats
     clustering: list[MeanVectorStats]
 
-
-
 class StatsLogger():
 
     def __init__(
@@ -622,7 +627,7 @@ class StatsLogger():
         return self.paragraph(t) if parag else t
 
 
-
+#----------------------------ArcGIS Python Toolbox----------------------------#
 class Toolbox(object):
 
     def __init__(self):
@@ -634,7 +639,6 @@ class Toolbox(object):
 
         # List of tool classes associated with this toolbox
         self.tools = [RoseDiagrams, StereoPlots, GraphToHyperlink]
-
 
 
 class _ToolBase(object):
@@ -691,7 +695,7 @@ class _ToolBase(object):
 
     def __init__(self) -> None:
 
-        """Base class for all tools."""
+        """Base class for all ArcStereoNet tools."""
 
         self.label = 'Tool label'
         self.description = 'Tool description.'
@@ -722,7 +726,7 @@ class _ToolBase(object):
         """
 
         scratch_folder = arcpy.env.scratchFolder
-        temp_path = path.join(scratch_folder, file_name)
+        temp_path = os.path.join(scratch_folder, file_name)
         return temp_path
 
 
@@ -734,6 +738,9 @@ class _ToolBase(object):
         classic ValueTable data (list of lists). This allows preserving special
         value characters (like '#' indicating empty values), not accessible via
         'parameter.values'.
+
+        Args:
+            parameter (arcpy.Parameter): ValueTable parameter to be parsed.
 
         Raises:
             TypeError: Datatype of 'parameter' must be "Value Table".
@@ -768,7 +775,7 @@ class _ToolBase(object):
         return parameter.altered and not parameter.hasBeenValidated
     
     
-    def getFieldParameterAlias(
+    def getFieldAlias(
         self,
         field_parameter: arcpy.Parameter,
         feature_parameter: arcpy.Parameter
@@ -809,7 +816,7 @@ class _ToolBase(object):
             return field_parameter.valueAsText
     
     
-    def inferFieldParameter(
+    def inferField(
         self,
         parameter: arcpy.Parameter,
         field_list: Iterable[arcpy.Field],
@@ -848,7 +855,7 @@ class _ToolBase(object):
             parameter.value = None
 
 
-    def resolveValueTableParameter(
+    def resolveValueTable(
         self,
         parameter: arcpy.Parameter,
         defaults: tuple[int | float | str, ...],
@@ -963,12 +970,14 @@ class _ToolBase(object):
         return f'{fieldname} {operator} {value}'
 
 
-
 class RoseDiagrams(_ToolBase):
 
-    VALUETABLE_DEFAULTS = {'Plot_Data': ('Random', 'NO', 1, 100)}
+    VALUETABLE_DEFAULTS = {
+        'Plot_Data': ('Random', 'NO', 1, 100),
+        'Radial_Labels_Properties': (8, 0, 8, 2, False)
+    }
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         """Define the tool (tool name is the name of the class)."""
 
@@ -1232,7 +1241,7 @@ class RoseDiagrams(_ToolBase):
         param17.filters[1].list = [0, 360]
         param17.filters[2].list = [0.0, 100.0]
         param17.filters[3].list = [0, 6]
-        param17.values = [[8, 0, 8, 2, False]]
+        param17.values = [self.VALUETABLE_DEFAULTS['Radial_Labels_Properties']]
 
         # Parameters list
         parameters = [
@@ -1276,9 +1285,9 @@ class RoseDiagrams(_ToolBase):
             fields: list[arcpy.Field] = describe.fields
             numf = [f for f in fields if f.type in NUM_FIELD_TYPES]
             strf = [f for f in fields if f.type == 'String']
-            self.inferFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
-            self.inferFieldParameter(Type_Field, strf, self.TYPE_HINTS)
-            self.inferFieldParameter(Weight_Field, numf, self.WEIGHT_HINTS)
+            self.inferField(Azimuth_Field, numf, self.AZIMUTH_HINTS)
+            self.inferField(Type_Field, strf, self.TYPE_HINTS)
+            self.inferField(Weight_Field, numf, self.WEIGHT_HINTS)
 
         # Update data types value list of Plot Data ValueTable parameter when
         # Type Field parameter changes. Clear value list if Type Field is empty
@@ -1295,7 +1304,7 @@ class RoseDiagrams(_ToolBase):
         # parameter when it changes (entry added, modified, moved or removed)
         if self.parameterChanged(Plot_Data):
             defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
-            self.resolveValueTableParameter(Plot_Data, defaults)
+            self.resolveValueTable(Plot_Data, defaults)
                                                                                 
         # Enable Image Output parameter when Save Image option is checked
         if self.parameterChanged(Save_Image):
@@ -1367,9 +1376,13 @@ class RoseDiagrams(_ToolBase):
         return
 
 
-    def isLicensed(self):
+    def isLicensed(self) -> bool:
 
-        """Set whether tool is licensed to execute."""
+        """Set whether tool is licensed to execute.
+
+        Returns:
+            bool: Whether tool is licensed.
+        """
 
         return True
 
@@ -1435,9 +1448,9 @@ class RoseDiagrams(_ToolBase):
             null_value=''
         )
 
-        # Plot data
+        # Plot data - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         max_bar_length = 0
-        plot_data = Plot_Data.values if Plot_Data.values is not None else []
+        plot_data = pd if (pd := Plot_Data.values) is not None else []
         for (_type, _color, _mean_vect, _nclusts, _azm_tol) in plot_data:
            
             # Get azimuth and weight values from data filtered by _type
@@ -1459,14 +1472,14 @@ class RoseDiagrams(_ToolBase):
                 half = max(np.split(hist, 2), key=np.sum)
                 hist = np.concatenate([half, half])
 
-            # Update maximum bar lenght
+            # Update maximum bar length
             max_bar_length = max(max_bar_length, hist.max())
 
             # Randomize color if required
             if _color == 'Random':
                 _color = np.random.choice(list(COLORS.keys()))
 
-            # Ensure tracking all plotted instances of _type
+            # Ensure all plotted instances of _type have unique labels
             type_lbl = self.getUniqueLabel(_type, statistics.keys())
 
             # Add histogram data to plot
@@ -1563,7 +1576,7 @@ class RoseDiagrams(_ToolBase):
                 )
 
         # Set optional "Weighted on" label
-        weight_alias = self.getFieldParameterAlias(Weight_Field, Input_Feature) 
+        weight_alias = self.getFieldAlias(Weight_Field, Input_Feature) 
         if Weighted.value:
             ax.text(
                 x=0.0,
@@ -1591,7 +1604,7 @@ class RoseDiagrams(_ToolBase):
         else:
             image_outpath = self.tempFilepath('RoseDiagram_temp.png')
 
-        root = path.splitext(image_outpath)[0]
+        root = os.path.splitext(image_outpath)[0]
         log_outpath = f'{root}_LOG.txt'
         xy_path = f'{root}_xy.txt'
 
@@ -1631,12 +1644,11 @@ class RoseDiagrams(_ToolBase):
 
         # Auto-show image (and optionally log file) if image is temporary
         else: # add a dedicated boolean parameter to enable auto-show?
-            startfile(image_outpath)
+            os.startfile(image_outpath)
             if Write_Log.value:
-                startfile(log_outpath)
+                os.startfile(log_outpath)
 
         return
-
 
 
 class StereoPlots(_ToolBase):
@@ -1790,7 +1802,7 @@ class StereoPlots(_ToolBase):
         param1.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
         param1.filter.list = NUM_FIELD_FILTERS                                 # type: ignore[reportOptionalMemberAccess]
         
-        # INCLINATION FIELD (param2) --------------------------------------------------
+        # INCLINATION FIELD (param2) ------------------------------------------
         param2 = arcpy.Parameter(
             name='inclination_field',
             displayName='Inclination Field',
@@ -2123,10 +2135,10 @@ class StereoPlots(_ToolBase):
             fields: list[arcpy.Field] = describe.fields
             numf = [f for f in fields if f.type in NUM_FIELD_TYPES]
             strf = [f for f in fields if f.type == 'String']
-            self.inferFieldParameter(Azimuth_Field, numf, self.AZIMUTH_HINTS)
-            self.inferFieldParameter(Inclination_Field, numf, self.INCLINATION_HINTS)
-            self.inferFieldParameter(Method_Field, strf, self.METHOD_HINTS)
-            self.inferFieldParameter(Type_Field, strf, self.TYPE_HINTS)
+            self.inferField(Azimuth_Field, numf, self.AZIMUTH_HINTS)
+            self.inferField(Inclination_Field, numf, self.INCLINATION_HINTS)
+            self.inferField(Method_Field, strf, self.METHOD_HINTS)
+            self.inferField(Type_Field, strf, self.TYPE_HINTS)
 
         # Update data types value lists of Plot Data, Contour Data and Mean
         # Vector Data ValueTable parameters when Type Field parameter changes.
@@ -2149,15 +2161,15 @@ class StereoPlots(_ToolBase):
         # added, modified, moved or removed)    
         if self.parameterChanged(Plot_Data):
             defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
-            self.resolveValueTableParameter(Plot_Data, defaults)
+            self.resolveValueTable(Plot_Data, defaults)
 
         if self.parameterChanged(Contour_Data):
             defaults = self.VALUETABLE_DEFAULTS['Contour_Data']
-            self.resolveValueTableParameter(Contour_Data, defaults)
+            self.resolveValueTable(Contour_Data, defaults)
 
         if self.parameterChanged(Mean_Vector_Data):
             defaults = self.VALUETABLE_DEFAULTS['Mean_Vector_Data']
-            self.resolveValueTableParameter(Mean_Vector_Data, defaults)
+            self.resolveValueTable(Mean_Vector_Data, defaults)
 
         # Enable Output Image parameter when Save Image option is checked
         if self.parameterChanged(Save_Image):
@@ -2305,7 +2317,7 @@ class StereoPlots(_ToolBase):
         data[fields[0]][dd_mask] -= 90 # module 360 is computed later
         data[fields[2]][dd_mask] = 'RHR'
 
-        # Plot data
+        # Plot data - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         plot_data = pd if (pd := Plot_Data.values) is not None else []
         for _type, _color, _marker, _msize, _line, _lwidth in plot_data:
 
@@ -2431,7 +2443,7 @@ class StereoPlots(_ToolBase):
                 info = f'Contour on: {_type}\nMethod: {_method}\nσ: {_sigma}'
                 ax.text(x, y - 0.1, info, fontsize=8, transform=ax.transAxes)
 
-        # Plot mean vector data
+        # Plot mean vector data - - - - - - - - - - - - - - - - - - - - - - - -
         cones_proxy: dict[str, Line2D] = {} # only used for MEAD+Fisher
         mv_data = mvd if (mvd := Mean_Vector_Data.values) is not None else []
         for (_type, _algorithm, _nclusts, _azm_tol, _inc_tol, _fisher_conf,
@@ -2684,7 +2696,7 @@ class StereoPlots(_ToolBase):
         else:
             image_outpath = self.tempFilepath('StereoPlot_temp.png')
 
-        root = path.splitext(image_outpath)[0]
+        root = os.path.splitext(image_outpath)[0]
         log_outpath = f'{root}_LOG.txt'
         xy_path = f'{root}_xy.txt'
 
@@ -2721,12 +2733,11 @@ class StereoPlots(_ToolBase):
 
         # Auto-show image (and optionally log file) if image is temporary
         else: # add a dedicated boolean parameter to enable auto-show?
-            startfile(image_outpath)
+            os.startfile(image_outpath)
             if Write_Log.value:
-                startfile(log_outpath)
+                os.startfile(log_outpath)
 
         return
-
 
 
 class GraphToHyperlink(_ToolBase):
@@ -2800,8 +2811,8 @@ class GraphToHyperlink(_ToolBase):
         # Send error message if the sidecar xy file is missing from any plot.
         if self.parameterChanged(Input_Plots) and Input_Plots.value is not None:
             for img_path in Input_Plots.values:
-                xy_path = path.splitext(str(img_path))[0] + '_xy.txt'
-                if not path.exists(xy_path):
+                xy_path = os.path.splitext(str(img_path))[0] + '_xy.txt'
+                if not os.path.exists(xy_path):
                     err = f'Unable to find coordinates file for {img_path}.'
                     Input_Plots.setErrorMessage(err)
                     break
@@ -2841,7 +2852,7 @@ class GraphToHyperlink(_ToolBase):
 
         # Populate 'fc_rows' and 'sr' with data from input plots
         for plot in Input_Plots.values:
-            xy_file = f'{path.splitext(str(plot))[0]}_xy.txt'
+            xy_file = f'{os.path.splitext(str(plot))[0]}_xy.txt'
             with io.open(xy_file, 'r') as temp_xy:
                 lon, lat, wkid = temp_xy.readlines()                
                 fc_rows.append(((float(lon), float(lat)), str(plot)))
@@ -2854,7 +2865,7 @@ class GraphToHyperlink(_ToolBase):
         
         # Create and populate output feature class
         arcpy.CreateFeatureclass_management(
-            *path.split(Output_Feature.valueAsText),
+            *os.path.split(Output_Feature.valueAsText),
             geometry_type='POINT',
             spatial_reference=arcpy.SpatialReference(wkid)
         )
