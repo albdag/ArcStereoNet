@@ -1305,10 +1305,12 @@ class RoseDiagrams(_ToolBase):
         if self.parameterChanged(Plot_Data):
             defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
             self.resolveValueTable(Plot_Data, defaults)
-                                                                                
-        # Enable Image Output parameter when Save Image option is checked
+        # Enable Image Output parameter when Save Image option is checked and
+        # clear its value when disabled
         if self.parameterChanged(Save_Image):
             Image_Output.enabled = Save_Image.value
+            if not Image_Output.enabled:
+                Image_Output.value = None
 
         # Enable Weight Field parameter when Weighted option is checked
         if self.parameterChanged(Weighted):
@@ -2171,9 +2173,12 @@ class StereoPlots(_ToolBase):
             defaults = self.VALUETABLE_DEFAULTS['Mean_Vector_Data']
             self.resolveValueTable(Mean_Vector_Data, defaults)
 
-        # Enable Output Image parameter when Save Image option is checked
+        # Enable Output Image parameter when Save Image option is checked and
+        # clear its value when disabled
         if self.parameterChanged(Save_Image):
             Image_Output.enabled = Save_Image.value
+            if not Image_Output.enabled:
+                Image_Output.value = None
 
         # Disable and uncheck Show Colorbar option when Contour Data is empty
         Show_Colorbar.enabled = Contour_Data.values is not None
