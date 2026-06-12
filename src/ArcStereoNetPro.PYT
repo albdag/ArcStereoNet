@@ -2339,7 +2339,7 @@ class StereoPlots(_ToolBase):
             type_lbl = self.getUniqueLabel(_type, statistics.keys()) 
 
             # Add markers (poles to planes or line vectors) to plot
-            if _marker != 'None':
+            if _marker != 'NONE':
                 kwargs = {
                     'color': COLORS.get(_color),
                     'marker': MARKERS.get(_marker),
