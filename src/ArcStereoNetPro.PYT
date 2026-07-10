@@ -5,6 +5,7 @@ ArcStereoNet Pro is a Python toolbox for ArcGIS Pro. Its main features include:
  - Link plots with their corresponding geographic position in map.
 
 Author: @albdag
+Version: pro-v1.4.0
 Dependencies: arcpy, numpy, matplotlib, mplstereonet
 """
 
