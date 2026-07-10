@@ -679,6 +679,8 @@ class _ToolBase(object):
         'plunges'
     )
     METHOD_HINTS = (
+        'format',
+        'formats',
         'method',
         'methods',
         'rule',
