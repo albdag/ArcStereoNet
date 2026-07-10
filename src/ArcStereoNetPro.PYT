@@ -42,6 +42,9 @@ arcpy.env.addOutputsToMap = False
 MeanVectorAlgorithm = Literal["MEAD", "MEAD+Fisher", "K-means", "Bingham"]
 MEAN_VECTOR_ALGORITHMS = ['MEAD', 'MEAD+Fisher', 'K-means', 'Bingham']
 
+# Data sampling method formats
+METHOD_FORMATS = ['DD', 'RHR', 'TP']
+
 # Stereonet types
 NET_TYPES = {'Schmidt (Equal Area)': 'schmidt', 'Wulff (Equal Angle)': 'wulff'}
 
@@ -2206,13 +2209,23 @@ class StereoPlots(_ToolBase):
         """
 
         # Parameters accessed by this method
+        Input_Feature = parameters[0] # Feature Class
+        Method_Field = parameters[3] # Field
         Save_Image = parameters[6] # GPBoolean
         Image_Output = parameters[7] # DEFile
         Net_Type = parameters[9] # GPString
         Contour_Data = parameters[17] # ValueTable
         Mean_Vector_Data = parameters[19] # ValueTable
 
-        # Output Image parameter is required if Save Image option is checked                                                            
+        # Set warning to Method Field parameter if it contains invalid methods
+        if Method_Field.value is not None and not Method_Field.hasError():
+            with arcpy.da.SearchCursor(
+                Input_Feature.value, Method_Field.valueAsText) as curs:
+                methods = set(row[0].upper() for row in curs)
+                if len(invalid := (methods - set(METHOD_FORMATS))):
+                    msg = f'Found data with invalid methods: {list(invalid)}.'
+                    Method_Field.setWarningMessage(msg)
+
         if Save_Image.value and Image_Output.value is None:
             Image_Output.setIDMessage('ERROR', 530)
 
