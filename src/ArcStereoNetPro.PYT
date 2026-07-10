@@ -42,6 +42,9 @@ arcpy.env.addOutputsToMap = False
 MeanVectorAlgorithm = Literal["MEAD", "MEAD+Fisher", "K-means", "Bingham"]
 MEAN_VECTOR_ALGORITHMS = ['MEAD', 'MEAD+Fisher', 'K-means', 'Bingham']
 
+# Stereonet types
+NET_TYPES = {'Schmidt (Equal Area)': 'schmidt', 'Wulff (Equal Angle)': 'wulff'}
+
 # Contour methods dictionary
 CONTOUR_METHODS = {
     'Kamb (no smoothing)': 'kamb',                               
@@ -1910,7 +1913,7 @@ class StereoPlots(_ToolBase):
             category='Advanced Options'
 		)
         param9.filter.type = 'ValueList'                                       # type: ignore[reportOptionalMemberAccess]
-        param9.filter.list = ['Schmidt (Equal Area)', 'Wulff (Equal Angle)']   # type: ignore[reportOptionalMemberAccess]
+        param9.filter.list = list(NET_TYPES.keys())                            # type: ignore[reportOptionalMemberAccess]
         param9.value = 'Schmidt (Equal Area)'
 
         # WRITE LOG (param10) -------------------------------------------------
@@ -2216,7 +2219,7 @@ class StereoPlots(_ToolBase):
         # Set warning to Net Type parameter when "Wulff" net is selected with
         # active statistical analysis (Contour or Mean Vector Extraction)
         if (
-            Net_Type.valueAsText == 'Wulff (Equal Angle)' and
+            NET_TYPES.get(Net_Type.valueAsText) == 'wulff' and
             any(p.value is not None for p in (Contour_Data, Mean_Vector_Data))
         ):
             msg = 'Schmidt net type is recommended for better statistics.'
@@ -2286,7 +2289,7 @@ class StereoPlots(_ToolBase):
         # PLOT INITIALIZATION -------------------------------------------------
         # Create figure with stereonet ax
         fig = Figure(figsize=(6, 6), dpi=Image_Dpi.value)
-        if Net_Type.valueAsText == 'Wulff (Equal Angle)':
+        if NET_TYPES.get(net := Net_Type.valueAsText, net) == 'wulff':
             ax = msn.stereonet_axes.EqualAngleAxes(fig, 111)
         else:
             ax = msn.stereonet_axes.EqualAreaAxes(fig, 111)
@@ -2347,7 +2350,7 @@ class StereoPlots(_ToolBase):
             if _marker != 'NONE':
                 kwargs = {
                     'color': COLORS.get(_color),
-                    'marker': MARKERS.get(_marker),
+                    'marker': MARKERS.get(_marker, _marker),
                     'markeredgecolor': '0.8' if _color == 'Black' else '0',
                     'markersize': _msize
                 }
@@ -2363,7 +2366,7 @@ class StereoPlots(_ToolBase):
                     dip=dip,
                     color=COLORS.get(_color),
                     label=type_lbl,
-                    linestyle=LINES.get(_line),
+                    linestyle=LINES.get(_line, _line),
                     linewidth=_lwidth,
                     path_effects=[
                         mpe.withStroke(
@@ -2412,13 +2415,13 @@ class StereoPlots(_ToolBase):
             # Randomize colormap if required
             if _cmap == 'Random':
                 _cmap = np.random.choice(list(CONTOUR_COLORMAPS.keys()))
-            cmap = CONTOUR_COLORMAPS.get(_cmap)
+            cmap = CONTOUR_COLORMAPS.get(_cmap, _cmap)
 
             # Define contour args and kwargs
             args = (strike, dip) if kind == 'planes' else (plunge, trend)
             kwargs = {
                 'measurement': 'poles' if kind == 'planes' else 'lines',
-                'method': CONTOUR_METHODS.get(_method),
+                'method': CONTOUR_METHODS.get(_method, _method),
                 'sigma': _sigma,
                 'alpha': 1 - (_alpha / 100),
                 'linewidths': 1,
@@ -2602,7 +2605,7 @@ class StereoPlots(_ToolBase):
             if _marker != 'NONE':
                 kwargs = {
                     'color': COLORS.get(_color),
-                    'marker': MARKERS.get(_marker),
+                    'marker': MARKERS.get(_marker, _marker),
                     'markeredgecolor': '0.8' if _color == 'Black' else '0',
                     'markersize': _msize
                 }
@@ -2623,7 +2626,7 @@ class StereoPlots(_ToolBase):
                     dip=avg_inc,
                     color=COLORS.get(_color),
                     label=f'{label_root} plane(s)',
-                    linestyle=LINES.get(_line),
+                    linestyle=LINES.get(_line, _line),
                     linewidth=_lwidth,
                     path_effects=[
                         mpe.withStroke(
