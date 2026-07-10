@@ -219,12 +219,14 @@ def mead_clustering(
             provided, it must have same length of 'azms'. Defaults to None.
         n_clusts (int | None, optional): Number of clusters. If non-positive or
             None, it is set automatically. Defaults to None.
-        azm_tol (float, optional): Azimuth tolerance. It determines the minimum
-            azimuth distance for an angle to be considered part of a cluster.
-            Ranges in [0, 1]. Defaults to 0.5.
-        inc_tol (float, optional): Inclination tolerance. It determines the
-            minimum inclination distance for an angle to be considered part of
-            a cluster. Ranges in [0, 1]. Defaults to 0.3.
+        azm_tol (float, optional): Azimuth tolerance, i.e., the maximum allowed
+            azimuth distance (in percentage) of a measurement from a cluster
+            centroid for it to be considered part of that cluster. Ranges in 
+            [0, 1]. Defaults to 0.5.
+        inc_tol (float, optional): Inclination tolerance, i.e., the maximum
+            allowed inclination distance (in percentage) of a measurement from
+            a cluster centroid for it to be considered part of that cluster.
+            Ranges in [0, 1]. Defaults to 0.3.
         measurement (Literal["lines", "poles"], optional): Measurement type for
             stereoplot data. If "lines", 'azms' and 'incl' are swapped.
             Defaults to 'poles'.
