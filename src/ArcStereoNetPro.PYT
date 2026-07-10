@@ -2321,6 +2321,7 @@ class StereoPlots(_ToolBase):
         )
 
         # Convert Dip-Direction (DD) data to Right-Hand Rule (RHR)
+        data[fields[2]] = np.char.upper(data[fields[2]]) # no case sensitivity
         dd_mask = data[fields[2]] == 'DD'
         data[fields[0]][dd_mask] -= 90 # module 360 is computed later
         data[fields[2]][dd_mask] = 'RHR'
