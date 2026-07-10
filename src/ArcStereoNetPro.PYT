@@ -866,7 +866,7 @@ class _ToolBase(object):
     def resolveValueTable(
         self,
         parameter: arcpy.Parameter,
-        defaults: tuple[int | float | str, ...],
+        defaults: tuple[bool | int | float | str, ...],
         skip_first_col: bool = True
     ) -> None:
         
@@ -875,7 +875,7 @@ class _ToolBase(object):
 
         Args:
             parameter (arcpy.Parameter): ValueTable parameter to be filled.
-            defaults (tuple[int | float | str, ...]): Default table values.
+            defaults (tuple[bool | int | float | str, ...]): Default values.
             skip_first_col (bool, optional): Whether to skip first column of
              the table. Defaults to True.
 
@@ -905,6 +905,9 @@ class _ToolBase(object):
                 value, raw_value = table[row][col], raw_table[row][col]
                 filt = parameter.filters[col]
 
+                # Skip boolean values
+                if isinstance(value, bool):
+                    continue
                 # Fix empty values
                 if raw_value == '#' and value != default:
                     table[row][col] = default
@@ -981,7 +984,7 @@ class _ToolBase(object):
 class RoseDiagrams(_ToolBase):
 
     VALUETABLE_DEFAULTS = {
-        'Plot_Data': ('Random', 'NO', 1, 100),
+        'Plot_Data': ('Random', False, 1, 50),
         'Radial_Labels_Properties': (8, 0, 8, 2, False)
     }
 
@@ -1061,18 +1064,16 @@ class RoseDiagrams(_ToolBase):
         param3.columns = [
             ['GPString', 'Data Type'],
             ['GPString', 'Color'],
-            ['GPString', 'Show MEAD Mean Vector(s)'],
+            ['GPBoolean', 'Show MEAD Mean Vector(s)'],
             ['GPLong', 'Number of Clusters'],
-            ['GPLong', 'MEAD Azimuth tolerance(%)']
+            ['GPLong', 'MEAD Azimuth tolerance (%)']
         ]
         param3.filters[0].type = 'ValueList'
         param3.filters[1].type = 'ValueList'
-        param3.filters[2].type = 'ValueList'
         param3.filters[3].type = 'Range'
         param3.filters[4].type = 'Range'
         param3.filters[0].list = []
         param3.filters[1].list = ['Random'] + sorted(COLORS.keys())
-        param3.filters[2].list = ['NO', 'YES']
         param3.filters[3].list = [1, 100]
         param3.filters[4].list = [0, 100]
 
@@ -1515,7 +1516,7 @@ class RoseDiagrams(_ToolBase):
                 }
 
             # Compute mean vector(s) if required
-            if _mean_vect == 'YES':
+            if _mean_vect:
                 mead_clusters, _ = mead_clustering(
                     azms=azimuth,
                     incl=None,
