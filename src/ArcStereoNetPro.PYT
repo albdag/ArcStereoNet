@@ -1280,6 +1280,7 @@ class RoseDiagrams(_ToolBase):
         Image_Output = parameters[5] # DEFile
         Weighted = parameters[12] # GPBoolean
         Weight_Field = parameters[13] # Field
+        Radial_Labels_Properties = parameters[17] # ValueTable
 
         # Attempt to fill Azimuth, Type and Weight fields parameters with 
         # matching fields from the newly selected Input Feature. Clear them if
@@ -1324,6 +1325,12 @@ class RoseDiagrams(_ToolBase):
         # Enable Weight Field parameter when Weighted option is checked
         if self.parameterChanged(Weighted):
             Weight_Field.enabled = Weighted.value
+
+        # Attempt to fill empty or invalid entries of Radial Labels Properties
+        # ValueTable parameter when any of its values is modified
+        if self.parameterChanged(Radial_Labels_Properties):
+            defaults = self.VALUETABLE_DEFAULTS['Radial_Labels_Properties']
+            self.resolveValueTable(Radial_Labels_Properties, defaults, False)
 
         return
 
