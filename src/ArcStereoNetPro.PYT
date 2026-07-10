@@ -35,7 +35,7 @@ from matplotlib.projections.polar import PolarAxes
 
 #-----------------------------Environment Settings----------------------------#
 # Prevent adding output image to Contents pane
-arcpy.env.addOutputsToMap = False                                          
+arcpy.env.addOutputsToMap = False
 
 
 #-----------------------------------Globals-----------------------------------#
@@ -51,7 +51,7 @@ NET_TYPES = {'Schmidt (Equal Area)': 'schmidt', 'Wulff (Equal Angle)': 'wulff'}
 
 # Contour methods dictionary
 CONTOUR_METHODS = {
-    'Kamb (no smoothing)': 'kamb',                               
+    'Kamb (no smoothing)': 'kamb',
     'Kamb (linear smoothing)': 'linear_kamb',
     'Kamb (inverse square smoothing)': 'square_kamb',
     'Kamb (exponential smoothing)': 'exponential_kamb',
@@ -60,30 +60,30 @@ CONTOUR_METHODS = {
 
 # Contour color maps dictionary
 CONTOUR_COLORMAPS = {
-    "Viridis (Purple-Green-Yellow)": "viridis",
-    "Plasma (Blue-Red-Yellow)": "plasma",
-    "Inferno (DarkPurple-Red-Yellow)": "inferno",
-    "Magma (DarkPurple-DarkPink-PaleYellow)": "magma",
-    "Cividis (Blue-Yellow)": "cividis",
-    "Turbo (Blue-Yellow-Red)": "turbo",
-    "Greys": "Greys",
-    "Purples": "Purples",
-    "Blues": "Blues",
-    "Greens": "Greens",
-    "Oranges": "Oranges",
-    "Reds": "Reds",
-    "Yellow-Orange-Brown": "YlOrBr",
-    "Yellow-Orange-Red": "YlOrRd",
-    "Orange-Red": "OrRd",
-    "Purple-Red": "PuRd",
-    "Red-Purple": "RdPu",
-    "Blue-Purple": "BuPu",
-    "Purple-Blue": "PuBu",
-    "Green-Blue": "GnBu",
-    "Blue-Green": "BuGn",
-    "Purple-Blue-Green": "PuBuGn",
-    "Yellow-Green-Blue": "YlGnBu",
-    "Yellow-Green": "YlGn",
+    'Viridis (Purple-Green-Yellow)': 'viridis',
+    'Plasma (Blue-Red-Yellow)': 'plasma',
+    'Inferno (DarkPurple-Red-Yellow)': 'inferno',
+    'Magma (DarkPurple-DarkPink-PaleYellow)': 'magma',
+    'Cividis (Blue-Yellow)': 'cividis',
+    'Turbo (Blue-Yellow-Red)': 'turbo',
+    'Greys': 'Greys',
+    'Purples': 'Purples',
+    'Blues': 'Blues',
+    'Greens': 'Greens',
+    'Oranges': 'Oranges',
+    'Reds': 'Reds',
+    'Yellow-Orange-Brown': 'YlOrBr',
+    'Yellow-Orange-Red': 'YlOrRd',
+    'Orange-Red': 'OrRd',
+    'Purple-Red': 'PuRd',
+    'Red-Purple': 'RdPu',
+    'Blue-Purple': 'BuPu',
+    'Purple-Blue': 'PuBu',
+    'Green-Blue': 'GnBu',
+    'Blue-Green': 'BuGn',
+    'Purple-Blue-Green': 'PuBuGn',
+    'Yellow-Green-Blue': 'YlGnBu',
+    'Yellow-Green': 'YlGn'
 }
 
 # Allowed rose diagram's bin sizes
@@ -102,7 +102,7 @@ COLORS = {
     'Green': 'g',
     'Blue': 'b',
     'Cyan': 'c',
-    'Magenta': 'm',   
+    'Magenta': 'm',
     'Yellow': 'y',
     'Black': 'k',
     'Orange': '#ff8c00',
@@ -128,7 +128,7 @@ MARKERS = {
     'Point (•)': '.',
     'Square (◻)': 's',
     'Triangle (△)': '^',
-    'Hexagon (⬡)': 'H',       
+    'Hexagon (⬡)': 'H',
     'Thin diamond (◊)': 'd',
     'Star (☆)': '*',
     'Circle (○)': 'o',
@@ -137,7 +137,7 @@ MARKERS = {
     'Plus (+)': 'P',
     'Cross (✕)': 'X'
 }
-                
+
 # Lines dictionary
 LINES = {
     'Solid (—)': '-',
@@ -206,7 +206,7 @@ def mead_clustering(
     inc_tol: float = 0.3,
     measurement: Literal["lines", "poles"] = "poles"
 ) -> tuple[list[NDArray[np.float64]], NDArray[np.float64]]:
-    
+
     """Cluster oriented data into 'n_clusts' number of clusters. Works for both
     2D (e.g., lines) and 3D (e.g., planes) azimuthal data.
 
@@ -215,13 +215,13 @@ def mead_clustering(
         incl (ArrayLike | None): 1D array-like with inclination data. Use None
             for rose diagram data. If provided, it must have same length of
             'azms'.
-        wgts (ArrayLike | None, optional): 1D array-like with weight data. If 
+        wgts (ArrayLike | None, optional): 1D array-like with weight data. If
             provided, it must have same length of 'azms'. Defaults to None.
         n_clusts (int | None, optional): Number of clusters. If non-positive or
             None, it is set automatically. Defaults to None.
         azm_tol (float, optional): Azimuth tolerance, i.e., the maximum allowed
             azimuth distance (in percentage) of a measurement from a cluster
-            centroid for it to be considered part of that cluster. Ranges in 
+            centroid for it to be considered part of that cluster. Ranges in
             [0, 1]. Defaults to 0.5.
         inc_tol (float, optional): Inclination tolerance, i.e., the maximum
             allowed inclination distance (in percentage) of a measurement from
@@ -230,7 +230,7 @@ def mead_clustering(
         measurement (Literal["lines", "poles"], optional): Measurement type for
             stereoplot data. If "lines", 'azms' and 'incl' are swapped.
             Defaults to 'poles'.
-        
+
     Returns:
         clust, noise (tuple[list[NDArray[np.float64]], NDArray[np.float64]]):
             List of clusters and unclustered noisy data. Arrays have shape Nx3
@@ -238,7 +238,7 @@ def mead_clustering(
     """
 
     # Force numpy arrays
-    azms = np.asarray(azms) 
+    azms = np.asarray(azms)
     incl = np.asarray(incl) if incl is not None else np.zeros(azms.shape)
     wgts = np.asarray(wgts) if wgts is not None else np.ones(azms.shape)
 
@@ -251,7 +251,7 @@ def mead_clustering(
     inc_unq, inc_cnt = np.unique(incl, return_counts=True)
     azm_freq = dict(zip(azm_unq, azm_cnt / azm_cnt.max()))
     inc_freq = dict(zip(inc_unq, inc_cnt / inc_cnt.max()))
-    
+
     # Group unclustered azimuth-inclination-weights triplets in an array with
     # shape Nx3, sorted by the sum of azimuth + inclination frequencies
     # (descending), and multiplied by normalized weights values
@@ -259,7 +259,7 @@ def mead_clustering(
     sort_idx = np.argsort(-freq.sum(axis=1) * wgts / wgts.max())
     data = np.column_stack((azms, incl, wgts))[sort_idx]
 
-    # Iteratively extract and cluster oriented data  
+    # Iteratively extract and cluster oriented data
     clusters: list[NDArray[np.float64]] = []
     while len(data):
         # Pre-compute sin and cos of azimuth, and sin of inclination (radians)
@@ -287,7 +287,7 @@ def mead_clustering(
             if (median_azm, median_inc) in median_history:
                 break
             median_history.append((median_azm, median_inc))
-        
+
         # Add cluster to cluster list and prepare data for next iteration
         clusters.append(clust)
         data = data[~condition] # only keep excluded angles
@@ -300,7 +300,7 @@ def mead_clustering(
     if n_clusts is None or n_clusts < 1:
         diff = np.diff([len(c) for c in clusters])
         n_clusts = int(np.argmin(diff) if len(diff) else 0) + 1
-    else: 
+    else:
         n_clusts = min(len(clusters), n_clusts)
 
     # Merge residual clusters into a singular "noise" data array
@@ -313,7 +313,7 @@ def mead_clustering(
 def mead_mean_vectors(
     mead_clusters: list[NDArray[np.float64]]
 ) -> tuple[list[tuple[float, float]], list[float]]:
-    
+
     """Extract mean vector statistics from clustered data. Requires a list of
     clusters as returned by the 'mead_clustering' function.
 
@@ -323,7 +323,7 @@ def mead_mean_vectors(
             'mead_clustering' function for more details.
 
     Returns:
-        mean_vect, r_means (tuple[list[tuple[float, float]], list[float]]): 
+        mean_vect, r_means (tuple[list[tuple[float, float]], list[float]]):
         List of azimuth-inclination couples for each cluster and list of R mean
         values for each cluster.
     """
@@ -384,7 +384,7 @@ class StatsLogger():
             stats_dict (dict[str, StatItem]): Dictionary containing statistics.
             kind (Literal["RoseDiagrams", "StereoPlots"]): Requesting tool.
         """
-    
+
         self.stats = stats_dict
         self.kind = kind
 
@@ -402,7 +402,7 @@ class StatsLogger():
         """
 
         return f'{text}\n\n'
-    
+
 
     @staticmethod
     def head(text: str) -> str:
@@ -435,7 +435,7 @@ class StatsLogger():
 
         t = '\n'.join(text_list)
         return self.paragraph(t) if parag else t
-    
+
 
     def toolName(self, parag: bool = True) -> str:
 
@@ -450,7 +450,7 @@ class StatsLogger():
 
         t = f'Tool: {self.kind}'
         return self.paragraph(t) if parag else t
-    
+
 
     def dateTime(self, parag: bool = True) -> str:
 
@@ -465,7 +465,7 @@ class StatsLogger():
 
         t = f'Datetime: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
         return self.paragraph(t) if parag else t
-            
+
 
     def samples(self, parag: bool = True) -> str:
 
@@ -481,7 +481,7 @@ class StatsLogger():
 
         t = '\n'.join(f'{k}: {v["n"]}' for k, v in sorted(self.stats.items()))
         return self.paragraph(t) if parag else t
-    
+
 
     def contour(self, parag: bool = True) -> str:
 
@@ -504,7 +504,7 @@ class StatsLogger():
                 # Type
                 tlist.append(type_)
 
-                # Method 
+                # Method
                 tlist.append(f'- Contour method: {cont[0]}')
 
                 # Standard deviation
@@ -515,10 +515,10 @@ class StatsLogger():
 
         if not contour_stats_available:
             return ''
-        
+
         t = '\n'.join(tlist[:-1]) # exclude last extra spacing element
         return self.paragraph(t) if parag else t
-        
+
 
     def clustering(self, mirrored: bool = False, parag: bool = True) -> str:
 
@@ -537,14 +537,14 @@ class StatsLogger():
 
         tlist = [self.head('MEAN VECTORS STATISTICS')]
         clust_stast_available = False
-        for type_, stats in sorted(self.stats.items()): 
-        
+        for type_, stats in sorted(self.stats.items()):
+
             for mvs in stats["clustering"]:
                 clust_stast_available = True
 
                 # Type
-                tlist.append(type_) 
-                
+                tlist.append(type_)
+
                 # Algorithm
                 algm = mvs["algorithm"]
                 desc = 'best fit plane' if algm == 'Bingham' else 'clustering'
@@ -565,7 +565,7 @@ class StatsLogger():
                 azms, incl = zip(*mvs["vectors"].values())
                 azms = np.rint(azms).astype(int)
                 incl = np.rint(incl).astype(int)
-                
+
                 if self.kind == "StereoPlots":
                     vect = '\t'.join(f'{a}/{i}' for a, i in zip(azms, incl))
                 elif mirrored:
@@ -595,16 +595,16 @@ class StatsLogger():
                     )
                     fstats = '\n'.join((s1, s2, s3))
                     tlist.append(f'- Fisher statistics:\n{fstats}')
-                
+
                 # Force extra spacing
                 tlist.append('')
 
         if not clust_stast_available:
             return ''
-        
+
         t = '\n'.join(tlist[:-1]) # exclude last extra spacing element
         return self.paragraph(t) if parag else t
-    
+
 
     def extraInfo(self, parag: bool = True) -> str:
 
@@ -660,7 +660,7 @@ Report any bug or feature request at the dedicated ArcStereoNet repository: http
 
     def writeToolboxDocumentation(self) -> None:
         """Write toolbox documentation as an XML file."""
-        
+
         fname, _ = os.path.splitext(__file__)
         xml_file = f'{fname}.pyt.xml'
         try:
@@ -744,7 +744,7 @@ class _ToolBase(object):
         """
 
         return importlib.util.find_spec(name) is not None
-    
+
 
     def tempFilepath(self, file_name: str) -> str:
         """Generate a temporary file path in the ArcGIS scratch folder.
@@ -783,12 +783,12 @@ class _ToolBase(object):
         # Enforce requirement of a ValueTable parameter
         if (dt := parameter.datatype) != 'Value Table':
             raise TypeError(f"Parameter must be of type Value Table, not {dt}")
-        
+
         # Rows: split on ';' character, excluding ';' inside string values
         # Columns: split on ' ' character, excluding ' ' inside string values
         rows = re.split(r";(?=(?:[^']*'[^']*')*[^']*$)", parameter.valueAsText)
         raw_table = [shlex.split(r.strip()) for r in rows]
-        
+
         return raw_table
 
 
@@ -804,15 +804,15 @@ class _ToolBase(object):
         """
 
         return parameter.altered and not parameter.hasBeenValidated
-    
-    
+
+
     def getFieldAlias(
         self,
         field_parameter: arcpy.Parameter,
         feature_parameter: arcpy.Parameter
     ) -> str:
-        
-        """Get alias name, if it exists, of Field parameter 'field_parameter' 
+
+        """Get alias name, if it exists, of Field parameter 'field_parameter'
         that belongs to Feature Layer parameter 'feature_parameter'. Fallback
         on field name if no alias is found.
 
@@ -831,11 +831,11 @@ class _ToolBase(object):
         # Enforce requirement of a Field parameter
         if (dt := field_parameter.datatype) != 'Field':
             raise TypeError(f"Parameter must be of type Field, not {dt}")
-        
+
         # Enforce requirement of a Feature Layer parameter
         if (dt := feature_parameter.datatype) != 'Feature Layer':
             raise TypeError(f"Parameter must be of type Feature Layer, not {dt}")
-        
+
         # Return field alias if it exists. Fallback on field name
         feature_desc = arcpy.Describe(feature_parameter.value)
         field_list: list[arcpy.Field] = feature_desc.fields
@@ -845,15 +845,15 @@ class _ToolBase(object):
                 return alias if alias else f.name
         else:
             return field_parameter.valueAsText
-    
-    
+
+
     def inferField(
         self,
         parameter: arcpy.Parameter,
         field_list: Iterable[arcpy.Field],
         field_hints: Iterable[str]
     ) -> None:
-        
+
         """Auto fill an empty Field 'parameter' with a field from 'field_list'
         that matches any of the 'field_hints'.
 
@@ -873,7 +873,7 @@ class _ToolBase(object):
         fields_dict = {f.name: f.aliasName for f in field_list}
 
         # Do not alter a parameter with a valid name or alias
-        if (parameter.valueAsText in fields_dict.keys() or 
+        if (parameter.valueAsText in fields_dict.keys() or
             parameter.valueAsText in fields_dict.values()):
             return
 
@@ -892,8 +892,8 @@ class _ToolBase(object):
         defaults: tuple[bool | int | float | str, ...],
         skip_first_col: bool = True
     ) -> None:
-        
-        """Auto fill empty or invalid entries in Value Table 'parameter' with 
+
+        """Auto fill empty or invalid entries in Value Table 'parameter' with
         values from 'defaults'.
 
         Args:
@@ -904,7 +904,7 @@ class _ToolBase(object):
 
         Raises:
             TypeError: Datatype of 'parameter' must be "Value Table".
-            ValueError: Lengths of 'defaults' and table columns cannot differ. 
+            ValueError: Lengths of 'defaults' and table columns cannot differ.
         """
 
         # Enforce requirement of a ValueTable parameter
@@ -914,7 +914,7 @@ class _ToolBase(object):
         # Do nothing if ValueTable parameter is invalid
         if (table := parameter.values) is None:
             return
-        
+
         # Raise error if lengths of 'defaults' and table columns are different
         columns = range(skip_first_col, len(table[0]))
         if (c := len(columns)) != (d := len(defaults)):
@@ -935,22 +935,22 @@ class _ToolBase(object):
                 if raw_value == '#' and value != default:
                     table[row][col] = default
                 # Fix numeric values out of range
-                elif filt.type == 'Range': 
+                elif filt.type == 'Range':
                     vmin, vmax = filt.list
                     table[row][col] = max(vmin, min(value, vmax))
                 # Fix values not in list
-                elif filt.type == 'ValueList': 
+                elif filt.type == 'ValueList':
                     table[row][col] = value if value in filt.list else default
 
         parameter.values = table
 
-    
+
     def getUniqueLabel(
         self,
         label: str,
         existent: Iterable[str] | None = None
     ) -> str:
-        
+
         """
         Generate a unique label by adding a progressive numerical suffix to
         'label' if it already exists in 'existent'. If 'existent' is None, the
@@ -968,13 +968,13 @@ class _ToolBase(object):
         # Return original label if there are no existing labels to check
         if existent is None:
             return label
-        
+
         # Add progressive suffix to label
         suffix = 0
         unique_label = label
         while unique_label in existent:
             suffix += 1
-            unique_label = f'{label}({suffix})' 
+            unique_label = f'{label}({suffix})'
         return unique_label
 
 
@@ -985,7 +985,7 @@ class _ToolBase(object):
         operator: str,
         value: Iterable[Any] | Any
     ) -> str:
-        
+
         """Generate a where clause, useful when iterating data using cursors.
 
         Args:
@@ -1011,7 +1011,7 @@ class _ToolBase(object):
         Returns:
             str: Path to documentation file.
         """
-        
+
         root, tbx = os.path.split(__file__)
         tbx_name = os.path.splitext(tbx)[0]
         tool_name = type(self).__name__
@@ -1025,7 +1025,7 @@ class _ToolBase(object):
         Args:
             xml_string (str): The tool documentation as an XML string.
         """
-        
+
         try:
             with open(self.documentationPath, 'w', encoding='utf-8') as doc:
                 doc.write(xml_string)
@@ -1068,7 +1068,7 @@ class RoseDiagrams(_ToolBase):
 
     def getParameterInfo(self) -> list[arcpy.Parameter]:
 
-        """Define parameter definitions.
+        """Define parameters definitions.
 
         Returns:
             list[arcpy.Parameter]: List of tool's parameters.
@@ -1145,7 +1145,7 @@ class RoseDiagrams(_ToolBase):
         param5 = arcpy.Parameter(
             name='image_output',
             displayName='Image Output',
-            direction='Output',          
+            direction='Output',
             datatype='DEFile',
             parameterType='Optional',
         )
@@ -1235,7 +1235,7 @@ class RoseDiagrams(_ToolBase):
             displayName='Weight Field',
             direction='Input',
             datatype='Field',
-            parameterType='Optional', 
+            parameterType='Optional',
             enabled=False,
             category='Advanced Options'
         )
@@ -1257,7 +1257,7 @@ class RoseDiagrams(_ToolBase):
         param15 = arcpy.Parameter(
             name='bin_size',
             displayName='Bin Size (degrees)',
-            direction='Input', 
+            direction='Input',
             datatype='GPLong',
             parameterType='Optional',
             category='Plot Customization'
@@ -1270,7 +1270,7 @@ class RoseDiagrams(_ToolBase):
         param16 = arcpy.Parameter(
             name='tick_spacing',
             displayName='Tick Spacing (degrees)',
-            direction='Input', 
+            direction='Input',
             datatype='GPLong',
             parameterType='Optional',
             category='Plot Customization'
@@ -1309,7 +1309,7 @@ class RoseDiagrams(_ToolBase):
         # Parameters list
         parameters = [
             param0, param1, param2, param3, param4, param5, param6, param7,
-            param8, param9, param10, param11, param12, param13, param14, 
+            param8, param9, param10, param11, param12, param13, param14,
             param15, param16, param17
         ]
         return parameters
@@ -1320,7 +1320,7 @@ class RoseDiagrams(_ToolBase):
         """Modify the values and properties of parameters before internal
         validation is performed. This method is called whenever a parameter has
         been changed.
-        
+
         Args:
             parameters (list[arcpy.Parameter]): Tool's parameters.
         """
@@ -1336,7 +1336,7 @@ class RoseDiagrams(_ToolBase):
         Weight_Field = parameters[13] # Field
         Radial_Labels_Properties = parameters[17] # ValueTable
 
-        # Attempt to fill Azimuth, Type and Weight fields parameters with 
+        # Attempt to fill Azimuth, Type and Weight fields parameters with
         # matching fields from the newly selected Input Feature. Clear them if
         # the Input Feature parameter is empty
         if Input_Feature.value is None:
@@ -1364,11 +1364,12 @@ class RoseDiagrams(_ToolBase):
                 data_types = sorted(set((row[0] for row in curs)))
                 Plot_Data.filters[0].list = data_types
 
-        # Attempt to fill empty or invalid entries of Plot Data ValueTable 
+        # Attempt to fill empty or invalid entries of Plot Data ValueTable
         # parameter when it changes (entry added, modified, moved or removed)
         if self.parameterChanged(Plot_Data):
             defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
             self.resolveValueTable(Plot_Data, defaults)
+
         # Enable Image Output parameter when Save Image option is checked and
         # clear its value when disabled
         if self.parameterChanged(Save_Image):
@@ -1409,7 +1410,7 @@ class RoseDiagrams(_ToolBase):
         Weighted = parameters[12] # GPBoolean
         Weight_Field = parameters[13] # Field
 
-        # Image Output parameter is required if Save Image option is checked                                                            
+        # Image Output parameter is required if Save Image option is checked
         if Save_Image.value and Image_Output.value is None:
             Image_Output.setIDMessage('ERROR', 530)
 
@@ -1430,11 +1431,11 @@ class RoseDiagrams(_ToolBase):
                 msg = f'Azimuth data of {warns} spreads more than 180 degrees.'
                 Mirrored.setWarningMessage(msg)
 
-        # Weight Field parameter is required if Weighted option is checked                                                            
+        # Weight Field parameter is required if Weighted option is checked
         if Weighted.value and Weight_Field.value is None:
             Weight_Field.setIDMessage('ERROR', 530)
-        
-        # Set warning if Weight Field parameter contains negative values 
+
+        # Set warning if Weight Field parameter contains negative values
         if (
             self.parameterChanged(Weight_Field) and
             Input_Feature.value is not None
@@ -1524,7 +1525,7 @@ class RoseDiagrams(_ToolBase):
         max_bar_length = 0
         plot_data = pd if (pd := Plot_Data.values) is not None else []
         for (_type, _color, _mean_vect, _nclusts, _azm_tol) in plot_data:
-           
+
             # Get azimuth and weight values from data filtered by _type
             filtered = data[data[fields[1]] == _type]
             azimuth = filtered[fields[0]] % 360
@@ -1619,12 +1620,12 @@ class RoseDiagrams(_ToolBase):
 
         # PLOT FINALIZATION ---------------------------------------------------
         # Set radial gridlines and labels
-        n_lbls, orient, fsize, dec, scient = Radial_Labels_Properties.values[0] 
+        n_lbls, orient, fsize, dec, scinot = Radial_Labels_Properties.values[0]
         radii = np.linspace(0, max_bar_length, n_lbls)
         ax.set_rgrids(
             radii=radii,
             angle=orient,
-            fmt=f"%.{dec}{'e' if scient else 'f'}",
+            fmt=f"%.{dec}{'e' if scinot else 'f'}",
             size=fsize,
             color='white',
             path_effects=[mpe.withStroke(linewidth=2, foreground='k')]
@@ -1648,7 +1649,7 @@ class RoseDiagrams(_ToolBase):
                 )
 
         # Set optional "Weighted on" label
-        weight_alias = self.getFieldAlias(Weight_Field, Input_Feature) 
+        weight_alias = self.getFieldAlias(Weight_Field, Input_Feature)
         if Weighted.value:
             ax.text(
                 x=0.0,
@@ -1700,7 +1701,7 @@ class RoseDiagrams(_ToolBase):
                 # Extra info (tool name, datetime)
                 log.write(logger.extraInfo(parag=False))
 
-        # Save centroid coordinates if image is not temporary     
+        # Save centroid coordinates if image is not temporary
         if Save_Image.value:
             coords = arcpy.da.FeatureClassToNumPyArray(
                 in_table=Input_Feature.valueAsText,
@@ -1744,13 +1745,13 @@ class StereoPlots(_ToolBase):
 
         super().__init__()
         self.label = 'Stereoplots'
-        self.description = '''Create stereographic projections from 2D and 3D 
+        self.description = '''Create stereographic projections from 2D and 3D
         oriented data.'''
         self.writeToolDocumentation(self.XML_DOC)
 
 
     def splitLineAndPlaneData(self, in_data: NDArray) -> list[NDArray]:
-        
+
         """Split linear data (trends / plunges) from planar data (strikes /
         dips) that populate the same input 'in_data' structured array.
 
@@ -1767,16 +1768,16 @@ class StereoPlots(_ToolBase):
             list[NDArray]: Output split planar and linear data, divided in
             strikes, dips, trends and plunges arrays.
         """
-        
+
         # Enforce requirement of a strucured array with exactly four fields
         if (fields := in_data.dtype.names) is None or len(fields) != 4:
             raise TypeError('A structured array with 4 fields is required')
-        
+
         # Split linear from planar data
         azimuth_field, inclination_field, method_field, _ = fields
         planar_data = in_data[in_data[method_field] == 'RHR']
         linear_data = in_data[in_data[method_field] == 'TP']
-        
+
         # Extract strikes / dips from planes and trends / plunges from lines
         strikes = planar_data[azimuth_field] % 360
         dips = planar_data[inclination_field]
@@ -1784,17 +1785,17 @@ class StereoPlots(_ToolBase):
         plunges = linear_data[inclination_field]
 
         return [strikes, dips, trends, plunges]
-    
+
 
     def getMajorityDataKind(
         self,
         strike: ArrayLike,
         trend: ArrayLike
     ) -> tuple[Literal["planes", "lines"], bool]:
-        
+
         """Return the majority data kind amongst planar and linear features, by
         analyzing the amount of 'strikes' and 'trends' records. Tipically, one
-        of the two should contain 0 records; if this is not the case, this 
+        of the two should contain 0 records; if this is not the case, this
         function will send a warning.
 
         Args:
@@ -1802,10 +1803,10 @@ class StereoPlots(_ToolBase):
             trend (ArrayLike): Trend data.
 
         Returns:
-            majority, warning (tuple[Literal["planes", "lines"], bool]): The 
+            majority, warning (tuple[Literal["planes", "lines"], bool]): The
             majority data kind; 'warning' is True if minority data kind is > 0.
         """
-        
+
         # Determine majority data kind (planar or linear)
         strike, trend = np.asarray(strike), np.asarray(trend)
         n_planes, n_lines = len(strike), len(trend)
@@ -1815,7 +1816,7 @@ class StereoPlots(_ToolBase):
         warning = min(n_planes, n_lines) > 0
 
         return majority, warning
-    
+
 
     def hideFirstContourLevel(self, contour: QuadContourSet) -> None:
 
@@ -1833,8 +1834,8 @@ class StereoPlots(_ToolBase):
         # Enforce requirement of a filled contour
         if not contour.filled:
             raise TypeError('Required a filled QuadContourSet.')
-        
-        # Generate colors from original colormap, but set first one transparent 
+
+        # Generate colors from original colormap, but set first one transparent
         levels = list(contour.levels)
         colors = np.zeros((len(levels)-1, 4))
         colors[0] = [1, 1, 1, 0]
@@ -1843,14 +1844,14 @@ class StereoPlots(_ToolBase):
         # Assign new colormap and normalization to contour
         contour.set_cmap(ListedColormap(colors))
         contour.set_norm(BoundaryNorm(levels, len(colors)))
-        
+
         # Fix transparency of first level being ignored by PathCollection
         contour.collections[0].set_alpha(0)
 
 
     def getParameterInfo(self) -> list[arcpy.Parameter]:
 
-        """Define parameter definitions.
+        """Define parameters definitions.
 
         Returns:
             list[arcpy.Parameter]: List of tool's parameters.
@@ -1876,7 +1877,7 @@ class StereoPlots(_ToolBase):
         )
         param1.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
         param1.filter.list = NUM_FIELD_FILTERS                                 # type: ignore[reportOptionalMemberAccess]
-        
+
         # INCLINATION FIELD (param2) ------------------------------------------
         param2 = arcpy.Parameter(
             name='inclination_field',
@@ -1887,7 +1888,7 @@ class StereoPlots(_ToolBase):
         )
         param2.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
         param2.filter.list = NUM_FIELD_FILTERS                                 # type: ignore[reportOptionalMemberAccess]
-        
+
         # METHOD FIELD (param3) -----------------------------------------------
         param3 = arcpy.Parameter(
             name='method_field',
@@ -1898,7 +1899,7 @@ class StereoPlots(_ToolBase):
         )
         param3.parameterDependencies = [param0.name]                           # type: ignore[reportAttributeAccessIssue]
         param3.filter.list = ['Text']                                          # type: ignore[reportOptionalMemberAccess]
-        
+
         # TYPE FIELD (param2) -------------------------------------------------
         param4 = arcpy.Parameter(
             name='type_field',
@@ -1914,7 +1915,7 @@ class StereoPlots(_ToolBase):
         param5 = arcpy.Parameter(
             name='plot_data',
             displayName='Plot Data',
-            direction='Input', 
+            direction='Input',
             datatype='GPValueTable',
             parameterType='Optional',
             multiValue=True
@@ -1970,7 +1971,7 @@ class StereoPlots(_ToolBase):
         )
         param8.controlCLSID = '{C8C46E43-3D27-4485-9B38-A49F3AC588D9}'
         param8.filter.type = 'Range'                                           # type: ignore[reportOptionalMemberAccess]
-        param8.filter.list = [0, 600]                                          # type: ignore[reportOptionalMemberAccess]                                       
+        param8.filter.list = [0, 600]                                          # type: ignore[reportOptionalMemberAccess]
         param8.value = 200
 
         # NET TYPE (param9) ---------------------------------------------------
@@ -2170,14 +2171,14 @@ class StereoPlots(_ToolBase):
             param15, param16, param17, param18, param19, param20
         ]
         return parameters
-    
+
 
     def updateParameters(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the values and properties of parameters before internal
         validation is performed. This method is called whenever a parameter has
         been changed.
-        
+
         Args:
             parameters (list[arcpy.Parameter]): Tool's parameters.
         """
@@ -2226,14 +2227,14 @@ class StereoPlots(_ToolBase):
         elif self.parameterChanged(Type_Field):
             with arcpy.da.SearchCursor(
                 Input_Feature.value, Type_Field.valueAsText) as curs:
-                data_types = sorted(set((row[0] for row in curs)))
+                data_types = sorted(set(row[0] for row in curs))
                 Plot_Data.filters[0].list = data_types
                 Contour_Data.filters[0].list = data_types
                 Mean_Vector_Data.filters[0].list = data_types
 
         # Attempt to fill empty or invalid entries of Plot Data, Contour Data
-        # and Mean Vector Data ValueTable parameters when they change (entry 
-        # added, modified, moved or removed)    
+        # and Mean Vector Data ValueTable parameters when they change (entry
+        # added, modified, moved or removed)
         if self.parameterChanged(Plot_Data):
             defaults = self.VALUETABLE_DEFAULTS['Plot_Data']
             self.resolveValueTable(Plot_Data, defaults)
@@ -2270,7 +2271,7 @@ class StereoPlots(_ToolBase):
 
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation.
-        
+
         Args:
             parameters (list[arcpy.Parameter]): Tool's parameters.
         """
@@ -2293,6 +2294,7 @@ class StereoPlots(_ToolBase):
                     msg = f'Found data with invalid methods: {list(invalid)}.'
                     Method_Field.setWarningMessage(msg)
 
+        # Output Image parameter is required if Save Image option is checked
         if Save_Image.value and Image_Output.value is None:
             Image_Output.setIDMessage('ERROR', 530)
 
@@ -2339,7 +2341,7 @@ class StereoPlots(_ToolBase):
                   f"more info, check the installation guide at {link}"
             messages.addErrorMessage(msg)
             return
-        
+
         # Initialize statistics dictionary
         statistics: dict[str, StatItem] = {}
 
@@ -2425,7 +2427,7 @@ class StereoPlots(_ToolBase):
                 _color = np.random.choice(list(COLORS.keys()))
 
             # Ensure all plotted instances of _type have unique labels
-            type_lbl = self.getUniqueLabel(_type, statistics.keys()) 
+            type_lbl = self.getUniqueLabel(_type, statistics.keys())
 
             # Add markers (poles to planes or line vectors) to plot
             if _marker != 'NONE':
@@ -2439,7 +2441,7 @@ class StereoPlots(_ToolBase):
                     ax.pole(strike, dip, label=f'{type_lbl} (Poles)', **kwargs)
                 else:
                     ax.line(plunge, trend, label=type_lbl, **kwargs)
-            
+
             # Add cyclographic traces to plot
             if _line != 'NONE' and kind == 'planes':
                 ax.plane(
@@ -2514,7 +2516,7 @@ class StereoPlots(_ToolBase):
                 contour = ax.density_contourf(*args, cmap=cmap, **kwargs)
                 self.hideFirstContourLevel(contour)
                 ax.density_contour(*args, colors='gray', **kwargs) # outline
-                    
+
             else:
                 contour = ax.density_contour(*args, cmap=cmap, **kwargs)
 
@@ -2537,7 +2539,7 @@ class StereoPlots(_ToolBase):
         mv_data = mvd if (mvd := Mean_Vector_Data.values) is not None else []
         for (_type, _algorithm, _nclusts, _azm_tol, _inc_tol, _fisher_conf,
              _color, _marker, _msize, _line, _lwidth) in mv_data:
-            
+
             # Determine majority data kind (planar or linear)
             filtered = data[data[fields[3]] == _type]
             strike, dip, trend, plunge = self.splitLineAndPlaneData(filtered)
@@ -2563,7 +2565,7 @@ class StereoPlots(_ToolBase):
                 args, measurement = (strike, dip), 'poles'
             else:
                 args, measurement = (plunge, trend), 'lines'
-            
+
             # Find mean vector(s) and update mean vector statistics
             match _algorithm:
                 case 'Bingham':
@@ -2585,7 +2587,7 @@ class StereoPlots(_ToolBase):
                     else:
                         c1, c2 = msn.geographic2plunge_bearing(*centers.T)
                         vect = [(c2[i], c1[i]) for i in range(len(centers))]
-                    
+
                     mean_vector_stats["vectors"] = dict(enumerate(vect))
 
                 case 'MEAD':
@@ -2613,7 +2615,7 @@ class StereoPlots(_ToolBase):
                         'measurement': measurement,
                         'conf': _fisher_conf
                     }
-                    
+
                     vect = {}
                     fisher_stats: dict[int, tuple[float, float, float]] = {}
                     mead_clusters, _ = mead_clustering(*args, **mead_kwargs)
@@ -2647,7 +2649,7 @@ class StereoPlots(_ToolBase):
                     msg = f'Algorithm "{_algorithm}" not recognized.'
                     messages.addErrorMessage(msg)
                     return
-                
+
             # Add clustering statistics to _type data
             if _type in statistics.keys():
                 statistics[_type]['clustering'].append(mean_vector_stats)
@@ -2668,7 +2670,7 @@ class StereoPlots(_ToolBase):
                 kwargs = {
                     'color': COLORS.get(_color),
                     'markeredgecolor': '0.8' if _color == 'Black' else '0',
-                    'markeredgewidth': _lwidth * 0.5, 
+                    'markeredgewidth': _lwidth * 0.5,
                     'markersize': _msize * 1.5
                 }
                 for i, cluster in enumerate(mead_clusters, start=1):           # type: ignore[reportPossiblyUnboundVariable]
@@ -2682,7 +2684,7 @@ class StereoPlots(_ToolBase):
             avg_azm, avg_inc = zip(*mean_vector_stats["vectors"].values())
             suffix = 'best fit' if _algorithm == 'Bingham' else 'mean'
             label_root = f'{_type}\n[{_algorithm}] {suffix}'
-            
+
             if _marker != 'NONE':
                 kwargs = {
                     'color': COLORS.get(_color),
@@ -2690,7 +2692,7 @@ class StereoPlots(_ToolBase):
                     'markeredgecolor': '0.8' if _color == 'Black' else '0',
                     'markersize': _msize
                 }
-                if measurement == 'poles' or _algorithm == 'Bingham': 
+                if measurement == 'poles' or _algorithm == 'Bingham':
                     lbl = f'{label_root} pole(s)'
                     ax.pole(avg_azm, avg_inc, label=lbl, **kwargs)
                 else:
@@ -2724,7 +2726,7 @@ class StereoPlots(_ToolBase):
                     plng, bear = msn.pole2plunge_bearing(avg_azm, avg_inc)
                 else:
                     plng, bear = avg_inc, avg_azm
-                
+
                 ax.cone(
                     plunge=plng,
                     bearing=bear,
@@ -2737,7 +2739,7 @@ class StereoPlots(_ToolBase):
                 # Fix fisher cones not showing up in legend
                 cones_label = f'{_type}\n[MEAD+Fisher] confidence cone'
                 cones_proxy[cones_label] = Line2D(
-                    xdata=(0, ), 
+                    xdata=(0, ),
                     ydata=(0, ),
                     linestyle='None',
                     marker="o",
@@ -2747,7 +2749,7 @@ class StereoPlots(_ToolBase):
                     markersize=10
                 )
 
-        # PLOT FINALIZATION --------------------------------------------------- 
+        # PLOT FINALIZATION ---------------------------------------------------
         # Set optional legend
         if Show_Legend.value:
             hdl, lbl = ax.get_legend_handles_labels()
@@ -2806,7 +2808,7 @@ class StereoPlots(_ToolBase):
                 # Extra info (tool name, datetime)
                 log.write(logger.extraInfo(parag=False))
 
-        # Save centroid coordinates if image is not temporary     
+        # Save centroid coordinates if image is not temporary
         if Save_Image.value:
             coords = arcpy.da.FeatureClassToNumPyArray(
                 in_table=Input_Feature.valueAsText,
@@ -2846,7 +2848,7 @@ class GraphToHyperlink(_ToolBase):
 
     def getParameterInfo(self) -> list[arcpy.Parameter]:
 
-        """Define parameter definitions.
+        """Define parameters definitions.
 
         Returns:
             list[arcpy.Parameter]: List of tool's parameters.
@@ -2881,19 +2883,19 @@ class GraphToHyperlink(_ToolBase):
         """Modify the values and properties of parameters before internal
         validation is performed. This method is called whenever a parameter
         has been changed.
-        
+
         Args:
             parameters (list[arcpy.Parameter]): Tool's parameters.
         """
 
         return
-    
+
 
     def updateMessages(self, parameters: list[arcpy.Parameter]) -> None:
 
         """Modify the messages created by internal validation for each tool
         parameter. This method is called after internal validation.
-        
+
         Args:
             parameters (list[arcpy.Parameter]): Tool's parameters.
         """
@@ -2947,7 +2949,7 @@ class GraphToHyperlink(_ToolBase):
         for plot in Input_Plots.values:
             xy_file = f'{os.path.splitext(str(plot))[0]}_xy.txt'
             with io.open(xy_file, 'r') as temp_xy:
-                lon, lat, wkid = temp_xy.readlines()                
+                lon, lat, wkid = temp_xy.readlines()
                 fc_rows.append(((float(lon), float(lat)), str(plot)))
                 sr_wkid.add(int(wkid))
 
@@ -2955,7 +2957,7 @@ class GraphToHyperlink(_ToolBase):
         wkid = None if len(sr_wkid) > 1 else sr_wkid.pop()
         if wkid is None:
             messages.addWarningMessage('Found conflicting SR: set to Unknown!')
-        
+
         # Create and populate output feature class
         arcpy.CreateFeatureclass_management(
             *os.path.split(Output_Feature.valueAsText),
