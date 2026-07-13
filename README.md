@@ -4,9 +4,9 @@
   <img width="512" src="https://github.com/user-attachments/assets/284911d5-39ef-4434-a46d-d7f7311f6461">
 </p>
 
-ArcStereoNet is an **ArcGIS® Python toolbox** that allows users to produce high quality *rose diagrams* and *stereographic projections* within the ArcGIS® environment, minding the gap between spatial orientation of data and its geographic location.
+ArcStereoNet is an **ArcGIS® Python toolbox** that integrates the [*mplstereonet*](https://github.com/joferkington/mplstereonet) library within the ArcGIS® environment, allowing users to produce high quality *rose diagrams* and *stereographic projections* and minding the gap between spatial orientation of data and its geographic location.
 
-ArcStereoNet was developed to support structural geology and mineralogy studies. Typical applications include the analysis of **geo-structural field data** ([example](https://doi.org/10.1080/17445647.2022.2057876)) or the identification of **preferred mineral orientations** from rock thin section data ([example](https://doi.org/10.3390/ijgi10020051)). However, ArcStereoNet can easily process any other type of oriented datasets.
+ArcStereoNet tools promote user accessibility thanks to their dynamic interface, providing extended support to structural geology and mineralogy studies. Typical applications include the analysis of **geo-structural field data** ([example](https://doi.org/10.1080/17445647.2022.2057876)) or the identification of **preferred mineral orientations** from rock thin section data ([example](https://doi.org/10.3390/ijgi10020051)). However, ArcStereoNet can easily process any other type of oriented datasets.
 
 This repository includes:
 
