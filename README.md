@@ -21,6 +21,10 @@ Ortolano, G., D’Agostino, A., Pagano, M., Visalli, R., Zucali, M., Fazio, E., 
 
 Export citation file: [BibTeX](Cite/ijgi-v10-i02_20250225.bib) | [EndNote](Cite/ijgi-v10-i02_20250225.enw) | [RIS](Cite/ijgi-v10-i02_20250225.ris)
 
+# Installation
+
+Check this step-by-step [installation guide](https://github.com/albdag/ArcStereoNet/wiki/1.-Installation). ArcGIS Pro or ArcGIS Desktop (ArcMap) are hard requirements.
+
 # User Guide
 
 ArcStereoNet includes three tools:
