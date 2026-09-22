@@ -18,6 +18,7 @@ import io
 import os
 import re
 import shlex
+import tempfile
 from datetime import datetime
 from typing import Any, Iterable, Literal, TypedDict
 
@@ -746,18 +747,21 @@ class _ToolBase(object):
         return importlib.util.find_spec(name) is not None
 
 
-    def tempFilepath(self, file_name: str) -> str:
+    def tempFilepath(self, root: str, ext: str) -> str:
         """Generate a temporary file path in the ArcGIS scratch folder.
 
         Args:
-            file_name (str): Name of the temporary file, including extension.
+            root (str): Temporary file name prefix.
+            ext (str): Temporary file extension, with dot (e.g., ".png").
 
         Returns:
             str: Full temporary file path.
         """
 
         scratch_folder = arcpy.env.scratchFolder
-        temp_path = os.path.join(scratch_folder, file_name)
+        with tempfile.NamedTemporaryFile(
+            prefix=root, suffix=ext, dir=scratch_folder, delete=False) as tmp:
+            temp_path = tmp.name
         return temp_path
 
 
@@ -1675,7 +1679,7 @@ class RoseDiagrams(_ToolBase):
         if Save_Image.value:
             image_outpath = Image_Output.valueAsText
         else:
-            image_outpath = self.tempFilepath('RoseDiagram_temp.png')
+            image_outpath = self.tempFilepath('RoseDiagram_', '.png')
 
         root = os.path.splitext(image_outpath)[0]
         log_outpath = f'{root}_LOG.txt'
@@ -2785,7 +2789,7 @@ class StereoPlots(_ToolBase):
         if Save_Image.value:
             image_outpath = Image_Output.valueAsText
         else:
-            image_outpath = self.tempFilepath('StereoPlot_temp.png')
+            image_outpath = self.tempFilepath('StereoPlot_', '.png')
 
         root = os.path.splitext(image_outpath)[0]
         log_outpath = f'{root}_LOG.txt'
