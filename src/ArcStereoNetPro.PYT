@@ -1849,8 +1849,9 @@ class StereoPlots(_ToolBase):
         contour.set_cmap(ListedColormap(colors))
         contour.set_norm(BoundaryNorm(levels, len(colors)))
 
-        # Fix transparency of first level being ignored by PathCollection
-        contour.collections[0].set_alpha(0)
+        # Fix PathCollection ignoring transparency of first level (mpl < 3.8)
+        if hasattr(contour, "collections"):
+            contour.collections[0].set_alpha(0)                                # type: ignore[reportAttributeAccessIssue]
 
 
     def getParameterInfo(self) -> list[arcpy.Parameter]:
