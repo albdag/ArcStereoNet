@@ -17,7 +17,7 @@ This repository includes:
 
 If you use this software as part of your research, please cite the original paper:
 
-Ortolano, G., D’Agostino, A., Pagano, M., Visalli, R., Zucali, M., Fazio, E., Alsop, I., & Cirrincione, R. (2021). ArcStereoNet: A New ArcGIS® Toolbox for Projection and Analysis of Meso- and Micro-Structural Data. *ISPRS International Journal of Geo-Information*, *10(2)*, *50*. [https://doi.org/10.3390/ijgi1002005](https://doi.org/10.3390/ijgi1002005)
+Ortolano, G., D’Agostino, A., Pagano, M., Visalli, R., Zucali, M., Fazio, E., Alsop, I., & Cirrincione, R. (2021). ArcStereoNet: A New ArcGIS® Toolbox for Projection and Analysis of Meso- and Micro-Structural Data. *ISPRS International Journal of Geo-Information*, *10(2)*, *50*. [https://doi.org/10.3390/ijgi10020050](https://doi.org/10.3390/ijgi10020050)
 
 Export citation file: [BibTeX](Cite/ijgi-v10-i02_20250225.bib) | [EndNote](Cite/ijgi-v10-i02_20250225.enw) | [RIS](Cite/ijgi-v10-i02_20250225.ris)
 
